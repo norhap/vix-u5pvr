@@ -200,6 +200,12 @@ class InfoBarDish:
 	def __init__(self):
 		self.dishDialog = self.session.instantiateDialog(Dish)
 		self.dishDialog.setAnimationMode(0)
+		self.onClose.append(self.__onClose)
+
+	def __onClose(self):
+		if self.dishDialog:
+			self.dishDialog.doClose()
+			self.dishDialog = None
 
 
 class InfoBarLongKeyDetection:
@@ -239,7 +245,9 @@ class InfoBarUnhandledKey:
 	def __onClose(self):
 		eActionMap.getInstance().unbindAction('', self.actionA)
 		eActionMap.getInstance().unbindAction('', self.actionB)
-		self.unhandledKeyDialog.close()
+		if self.unhandledKeyDialog:
+			self.unhandledKeyDialog.doClose()
+			self.unhandledKeyDialog = None
 
 	def actionA(self, key, flag):  # This function is called on every keypress!
 		print "[InfoBarGenerics] Key: %s (%s) KeyID='%s' Binding='%s'." % (key, KEYFLAGS[flag], self.invKeyIds.get(key, ""), getKeyDescription(key))
@@ -276,7 +284,13 @@ class InfoBarScreenSaver:
 		self.screenSaverTimer = eTimer()
 		self.screenSaverTimer.callback.append(self.screensaverTimeout)
 		self.screensaver = self.session.instantiateDialog(ScreenSaver.Screensaver)
+		self.onClose.append(self.__onClose)
 		self.onLayoutFinish.append(self.__layoutFinished)
+
+	def __onClose(self):
+		if self.screensaver:
+			self.screensaver.doClose()
+			self.screensaver = None
 
 	def __layoutFinished(self):
 		self.screensaver.hide()
@@ -574,8 +588,14 @@ class InfoBarShowHide(InfoBarScreenSaver):
 		self.hideVBILineScreen = self.session.instantiateDialog(HideVBILine)
 		self.hideVBILineScreen.show()
 
+		self.onClose.append(self.__onClose)
 		self.onLayoutFinish.append(self.__layoutFinished)
 		self.onExecBegin.append(self.__onExecBegin)
+
+	def __onClose(self):
+		if self.hideVBILineScreen:
+			self.hideVBILineScreen.doClose()
+			self.hideVBILineScreen = None
 
 	def __onExecBegin(self):
 		self.showHideVBI()
@@ -887,6 +907,12 @@ class InfoBarBuffer():
 	def __init__(self):
 		self.bufferScreen = self.session.instantiateDialog(BufferIndicator)
 		self.bufferScreen.hide()
+		self.onClose.append(self.__onClose)
+
+	def __onClose(self):
+		if self.bufferScreen:
+			self.bufferScreen.doClose()
+			self.bufferScreen= None
 
 class NumberZap(Screen):
 	def quit(self):
@@ -901,6 +927,7 @@ class NumberZap(Screen):
 		if self.searchNumber:
 			self.service, self.bouquet = self.searchNumber(int(self["number"].getText()))
 			self["servicename"].setText(ServiceReference(self.service).getServiceName())
+			self["servicename_summary"].setText(ServiceReference(self.service).getServiceName())
 			self["Service"].newService(self.service)
 			if not self.startBouquet:
 				self.startBouquet = self.bouquet
@@ -914,6 +941,7 @@ class NumberZap(Screen):
 			else:
 				self.service, self.bouquet = self.searchNumber(int(self["number"].getText()))
 			self["servicename"].setText(ServiceReference(self.service).getServiceName())
+			self["servicename_summary"].setText(ServiceReference(self.service).getServiceName())
 			self["Service"].newService(self.service)
 
 	def keyNumberGlobal(self, number):
@@ -941,6 +969,7 @@ class NumberZap(Screen):
 		self["number"] = Label(self.numberString)
 		self["number_summary"] = StaticText(self.numberString)
 		self["servicename"] = Label()
+		self["servicename_summary"] = StaticText()
 		self["Service"] = ServiceEvent()
 
 		self.onLayoutFinish.append(self.handleServiceName)
@@ -1155,6 +1184,15 @@ class InfoBarChannelSelection:
 				"ChannelPlusPressedLong": (self.zapDownPip, _("Switch the PiP to the next channel")),
 				"ChannelMinusPressedLong": (self.zapUpPip, _("Switch the PiP to the previous channel")),
 			}, description=_("Channel selection"))
+		self.onClose.append(self.__onClose)
+
+	def __onClose(self):
+		if self.servicelist:
+			self.servicelist.doClose()
+			self.servicelist = None
+		if self.servicelist2:
+			self.servicelist2.doClose()
+			self.servicelist2 = None
 
 	def _helpLeftRightPressed(self, zapHelp):
 		return config.vixsettings.InfoBarEpg_mode.value == "3" and config.usage.show_second_infobar.value != "INFOBAREPG" and _("Open infobar EPG") or zapHelp
@@ -1464,41 +1502,37 @@ class InfoBarEPG:
 			}, description=_("EPG access"))
 
 	def getEPGPluginList(self):
-		pluginlist = [(p.name, boundFunction(self.runPlugin, p)) for p in plugins.getPlugins(where = PluginDescriptor.WHERE_EVENTINFO)]
-		self.plugintexts = {"Event Info": _("Event Info"), "Grid EPG": _("Grid EPG"), "Infobar EPG": _("Infobar EPG"), "Multi EPG": _("Multi EPG"), "Single EPG": _("Single EPG"),}
-		pluginlist.append((self.plugintexts["Event Info"], self.openEventView))
-		pluginlist.append((self.plugintexts["Grid EPG"], self.openGridEPG))
-		pluginlist.append((self.plugintexts["Infobar EPG"], self.openInfoBarEPG))
-		pluginlist.append((self.plugintexts["Multi EPG"], self.openMultiServiceEPG))
-		pluginlist.append((self.plugintexts["Single EPG"], self.openSingleServiceEPG))
+		pluginlist = [(p.name, p.name, boundFunction(self.runPlugin, p)) for p in plugins.getPlugins(where = PluginDescriptor.WHERE_EVENTINFO)]
+		pluginlist.append(("Event Info", _("Event Info"), self.openEventView))
+		pluginlist.append(("Grid EPG", _("Grid EPG"), self.openGridEPG))
+		pluginlist.append(("Infobar EPG", _("Infobar EPG"), self.openInfoBarEPG))
+		pluginlist.append(("Multi EPG", _("Multi EPG"), self.openMultiServiceEPG))
+		pluginlist.append(("Single EPG", _("Single EPG"), self.openSingleServiceEPG))
 		return pluginlist
 
 	def getDefaultEPGtype(self):
 		pluginlist = self.getEPGPluginList()
 		default = "Grid EPG"
-		choices = [(self.getNonLocalisedPluginName(p[0]), p[0]) for p in pluginlist]
+		choices = [(p[0], p[1]) for p in pluginlist]
 		if not hasattr(config.usage, "defaultEPGType"): # first run
 			config.usage.defaultEPGType = ConfigSelection(default=default, choices=choices)
 			config.usage.defaultEPGType.addNotifier(self.defaultEPGtypeNotifier, initial_call=False, immediate_feedback=False)
 		for plugin in pluginlist:
-			if plugin[0] == self.plugintexts.get(config.usage.defaultEPGType.value, config.usage.defaultEPGType.value):
-				return plugin[1]
+			if plugin[0] == config.usage.defaultEPGType.value:
+				return plugin[2]
 		return None
 
 	def getDefaultINFOtype(self):
 		pluginlist = self.getEPGPluginList()
 		default = "Event Info"
-		choices = [(self.getNonLocalisedPluginName(p[0]), p[0]) for p in pluginlist]
+		choices = [(p[0], p[1]) for p in pluginlist]
 		if not hasattr(config.usage, "defaultINFOType"): # first run
 			config.usage.defaultINFOType = ConfigSelection(default=default, choices=choices)
 			config.usage.defaultINFOType.addNotifier(self.defaultINFOtypeNotifier, initial_call=False, immediate_feedback=False)
 		for plugin in pluginlist:
-			if plugin[0] == self.plugintexts.get(config.usage.defaultINFOType.value, config.usage.defaultINFOType.value):
-				return plugin[1]
+			if plugin[0] == config.usage.defaultINFOType.value:
+				return plugin[2]
 		return None
-
-	def getNonLocalisedPluginName(self, val):
-		return {v:k for k, v in self.plugintexts.items()}.get(val, val)
 
 	def defaultEPGtypeNotifier(self, configElement):
 		self.defaultEPGType = self.getDefaultEPGtype()
@@ -1507,24 +1541,28 @@ class InfoBarEPG:
 		self.defaultINFOType = self.getDefaultINFOtype()
 
 	def selectDefaultEpgPlugin(self):
-		plugins = self.getEPGPluginList()
-		selection = config.usage.defaultEPGType.description[config.usage.defaultEPGType.value] in [p[0] for p in plugins] and [p[0] for p in plugins].index(config.usage.defaultEPGType.description[config.usage.defaultEPGType.value]) or 0
-		self.session.openWithCallback(self.defaultEpgPluginChosen, ChoiceBox, title=_("Please select the default action of the EPG button"), list=plugins, skin_name="EPGExtensionsList", selection=selection)
+		plugins = [(p[0], p[1]) for p in self.getEPGPluginList()]
+		value = config.usage.defaultEPGType.value
+		selection = [i for i, p in enumerate(plugins) if p[0] == value]
+		self.session.openWithCallback(self.defaultEpgPluginChosen, ChoiceBox, title=_("Please select the default action of the EPG button"), 
+			list=plugins, skin_name="EPGExtensionsList", selection=selection and selection[0] or 0)
 
 	def selectDefaultInfoPlugin(self):
-		plugins = self.getEPGPluginList()
-		selection = config.usage.defaultINFOType.description[config.usage.defaultINFOType.value] in [p[0] for p in plugins] and [p[0] for p in plugins].index(config.usage.defaultINFOType.description[config.usage.defaultINFOType.value]) or 0
-		self.session.openWithCallback(self.defaultInfoPluginChosen, ChoiceBox, title=_("Please select the default action of the INFO button"), list=plugins, skin_name="EPGExtensionsList", selection=selection)
+		plugins = [(p[0], p[1]) for p in self.getEPGPluginList()]
+		value = config.usage.defaultINFOType.value
+		selection = [i for i, c in enumerate(plugins) if c[0] == value]
+		self.session.openWithCallback(self.defaultInfoPluginChosen, ChoiceBox, title=_("Please select the default action of the INFO button"), 
+			list=plugins, skin_name="EPGExtensionsList", selection=selection and selection[0] or 0)
 
 	def defaultEpgPluginChosen(self, answer):
 		if answer is not None:
-			config.usage.defaultEPGType.value = self.getNonLocalisedPluginName(answer[0])
+			config.usage.defaultEPGType.value = answer[0]
 			config.usage.defaultEPGType.save() # saving also forces self.defaultEPGTypeNotifier() to update self.defaultEPGType
 			configfile.save()
 
 	def defaultInfoPluginChosen(self, answer):
 		if answer is not None:
-			config.usage.defaultINFOType.value = self.getNonLocalisedPluginName(answer[0])
+			config.usage.defaultINFOType.value = answer[0]
 			config.usage.defaultINFOType.save() # saving also forces self.defaultINFOTypeNotifier() to update self.defaultINFOType
 			configfile.save()
 
@@ -1538,9 +1576,9 @@ class InfoBarEPG:
 		if isMoviePlayerInfoBar(self):
 			self.openEventView()
 		else:
-			pluginlist = self.getEPGPluginList()
-			pluginlist.append((_("Select default action of EPG button"), self.selectDefaultEpgPlugin))
-			self.session.openWithCallback(self.EventPluginChosenCallback, ChoiceBox, title=_("Please choose an extension..."), list = pluginlist, skin_name = "EPGExtensionsList")
+			plugins = [(p[0], p[2]) for p in self.getEPGPluginList()]
+			plugins.append((_("Select default action of EPG button"), self.selectDefaultEpgPlugin))
+			self.session.open(ChoiceBox, title=_("Please choose an extension..."), callbackList=plugins, skin_name="EPGExtensionsList", reorderConfig="eventinfo_order")
 
 	def _helpShowEventInfoPlugins(self):
 		if SystemInfo["mapKeyInfoToEpgFunctions"]:
@@ -1556,10 +1594,6 @@ class InfoBarEPG:
 
 	def runPlugin(self, plugin):
 		plugin(session = self.session, servicelist=self.servicelist)
-
-	def EventPluginChosenCallback(self, answer):
-		if answer is not None:
-			answer[1]()
 
 	def _helpRedPressed(self):
 		if isStandardInfoBar(self) or isMoviePlayerInfoBar(self):
@@ -1798,6 +1832,12 @@ class InfoBarRdsDecoder:
 
 		self.onLayoutFinish.append(self.rds_display.show)
 		self.rds_display.onRassInteractivePossibilityChanged.append(self.RassInteractivePossibilityChanged)
+		self.onClose.append(self.__onClose)
+
+	def __onClose(self):
+		if self.rds_display:
+			self.rds_display.doClose()
+			self.rds_display = None
 
 	def RassInteractivePossibilityChanged(self, state):
 		self["RdsActions"].setEnabled(state)
@@ -1849,7 +1889,13 @@ class Seekbar(Screen):
 		self["PositionGauge"] = Label()
 		self["time"] = Label()
 
-		self["actions"] = ActionMap(["WizardActions", "DirectionActions"], {"back": self.exit, "ok": self.keyOK, "left": self.keyLeft, "right": self.keyRight}, prio=-1)
+		self["actions"] = ActionMap(["WizardActions", "DirectionActions"],
+		{
+			"back": self.exit, 
+			"ok": self.keyOK, 
+			"left": self.keyLeft, 
+			"right": self.keyRight
+		}, prio=-1)
 
 		self.cursorTimer = eTimer()
 		self.cursorTimer.callback.append(self.updateCursor)
@@ -1895,13 +1941,6 @@ class Seekbar(Screen):
 		self.percent += float(config.seek.sensibility.value) / 10.0
 		if self.percent > 100.0:
 			self.percent = 100.0
-
-	def keyNumberGlobal(self, number):
-		sel = self["config"].getCurrent()[1]
-		if sel == self.positionEntry:
-			self.percent = float(number) * 10.0
-		else:
-			ConfigListScreen.keyNumberGlobal(self, number)
 
 class InfoBarSeek:
 	"""handles actions like seeking, pause"""
@@ -2421,6 +2460,12 @@ class InfoBarPVRState:
 		self.onShow.append(self._mayShow)
 		self.onHide.append(self.pvrStateDialog.hide)
 		self.force_show = force_show
+		self.onClose.append(self.__onClose)
+
+	def __onClose(self):
+		if self.pvrStateDialog:
+			self.pvrStateDialog.doClose()
+			self.pvrStateDialog = None
 
 	def createSummary(self):
 		return InfoBarMoviePlayerSummary
@@ -4082,6 +4127,12 @@ class InfoBarSubtitleSupport(object):
 				iPlayableService.evEnd: self.__serviceChanged,
 				iPlayableService.evUpdatedInfo: self.__updatedInfo
 			})
+		self.onClose.append(self.__onClose)
+
+	def __onClose(self):
+		if isStandardInfoBar(self):
+			self.subtitle_window.doClose()
+			self.subtitle_window = None
 
 	def getCurrentServiceSubtitle(self):
 		service = self.session.nav.getCurrentService()

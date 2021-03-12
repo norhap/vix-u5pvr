@@ -113,6 +113,7 @@ cable_autoscan_nimtype = {
 'SSH108' : 'ssh108',
 'TT3L10' : 'tt3l10',
 'TURBO' : 'vuplus_turbo_c',
+'TURBO2' : 'vuplus_turbo2_c',
 'TT2L08' : 'tt2l08',
 'BCM3148' : 'bcm3148',
 'BCM3158': 'bcm3148'
@@ -122,11 +123,13 @@ terrestrial_autoscan_nimtype = {
 'SSH108' : 'ssh108_t2_scan',
 'TT3L10' : 'tt3l10_t2_scan',
 'TURBO' : 'vuplus_turbo_t',
+'TURBO2' : 'vuplus_turbo2_t',
 'TT2L08' : 'tt2l08_t2_scan',
 'BCM3466' : 'bcm3466'
 }
 
 dual_tuner_list = ('TT3L10', 'BCM3466')
+vtuner_need_idx_list = ('TURBO2')
 
 def GetDeviceId(filter, nim_idx):
 	device_id = socket_id = 0
@@ -144,6 +147,17 @@ def GetDeviceId(filter, nim_idx):
 				device_id = 1
 		socket_id += 1
 	return device_id
+
+def getVtunerId(filter, nim_idx):
+	idx_count = 1
+	for slot in nimmanager.nim_slots:
+		slot_idx = slot.slot
+		if filter in slot.description:
+			if slot_idx == nim_idx :
+				return "--idx " + str(idx_count)
+			else:
+				idx_count += 1
+	return ""
 
 class CableTransponderSearchSupport:
 	def tryGetRawFrontend(self, feid):
@@ -239,6 +253,8 @@ class CableTransponderSearchSupport:
 					except Exception, err:
 						device_id = "--device=0"
 						print "[startCableTransponderSearch] GetCommand ->", err
+				elif nim_name in vtuner_need_idx_list:
+					device_id = getVtunerId(nim_name, nim_idx)
 				return "%s %s" % (cable_autoscan_nimtype[nim_name], device_id)
 			except Exception, err:
 				print "[startCableTransponderSearch] GetCommand ->", err
@@ -508,14 +524,16 @@ class TerrestrialTransponderSearchSupport:
 	def terrestrialTransponderGetCmd(self, nim_idx):
 		try:
 			device_id = ""
-			tunerName = nimmanager.getNimName(nim_idx).strip(':VTUNER').split(' ')[-1][4:-1]
-			if tunerName in dual_tuner_list:
+			nim_name = nimmanager.getNimName(nim_idx).strip(':VTUNER').split(' ')[-1][4:-1]
+			if nim_name in dual_tuner_list:
 				try:
-					device_id = "--device %s" % GetDeviceId(tunerName, nim_idx)
+					device_id = "--device %s" % GetDeviceId(nim_name, nim_idx)
 				except Exception, err:
 					device_id = "--device 0"
 					print "terrestrialTransponderGetCmd set device 0 ->", err
-			return "%s %s" % (terrestrial_autoscan_nimtype[tunerName], device_id)
+			elif nim_name in vtuner_need_idx_list:
+				device_id = getVtunerId(nim_name, nim_idx)
+			return "%s %s" % (terrestrial_autoscan_nimtype[nim_name], device_id)
 		except Exception, err:
 			print "[ScanSetup] terrestrialTransponderGetCmd ->", err
 		return ""
@@ -571,7 +589,7 @@ class ScanSetup(ConfigListScreen, Screen, CableTransponderSearchSupport, Terrest
 	def __init__(self, session):
 		Screen.__init__(self, session)
 		self.setTitle(_("Manual Scan"))
-
+		self.skinName = ["ScanSetup", "Setup"]
 		self.finished_cb = None
 		self.updateSatList()
 		self.service = session.nav.getCurrentService()
@@ -591,29 +609,23 @@ class ScanSetup(ConfigListScreen, Screen, CableTransponderSearchSupport, Terrest
 
 		self.session.postScanService = session.nav.getCurrentlyPlayingServiceOrGroup()
 
-		self["key_red"] = StaticText(_("Close"))
 		self["key_green"] = StaticText(_("Scan"))
 
-		self["actions"] = NumberActionMap(["SetupActions", "MenuActions", "ColorActions"],
+		self["actions"] = NumberActionMap(["SetupActions"],
 		{
-			"ok": self.keyGo,
 			"save": self.keyGo,
-			"cancel": self.keyCancel,
-			"red": self.keyCancel,
-			"green": self.keyGo,
-			"menu": self.doCloseRecursive,
 		}, -2)
 
 		self.statusTimer = eTimer()
 		self.statusTimer.callback.append(self.updateStatus)
 
 		self.list = []
-		ConfigListScreen.__init__(self, self.list)
+		ConfigListScreen.__init__(self, self.list, on_change=self.newConfig, fullUI = True)
+		self["introduction"] = Label("")
 		if not self.scan_nims.value == "":
 			self.createSetup()
-			self["introduction"] = Label(_("Press OK to scan"))
 		else:
-			self["introduction"] = Label(_("Nothing to scan! Setup your tuner and try again."))
+			self["introduction"].text = _("Nothing to scan! Setup your tuner and try again.")
 
 	def runAsync(self, finished_cb):
 		self.finished_cb = finished_cb
@@ -1241,18 +1253,6 @@ class ScanSetup(ConfigListScreen, Screen, CableTransponderSearchSupport, Terrest
 
 		return True
 
-	def keyLeft(self):
-		ConfigListScreen.keyLeft(self)
-		self.newConfig()
-
-	def keyRight(self):
-		ConfigListScreen.keyRight(self)
-		self.newConfig()
-
-	def handleKeyFileCallback(self, answer):
-		ConfigListScreen.handleKeyFileCallback(self, answer)
-		self.newConfig()
-
 	def updateStatus(self):
 		print "[ScanSetup] updatestatus"
 
@@ -1682,18 +1682,13 @@ class ScanSimple(ConfigListScreen, Screen, CableTransponderSearchSupport, Terres
 	def __init__(self, session):
 		Screen.__init__(self, session)
 		self.setTitle(_("Automatic Scan"))
+		self.skinName = ["ScanSimple", "Setup"]
 
-		self["key_red"] = StaticText(_("Close"))
 		self["key_green"] = StaticText(_("Scan"))
 
-		self["actions"] = ActionMap(["SetupActions", "MenuActions", "ColorActions"],
+		self["actions"] = ActionMap(["SetupActions"],
 		{
-			"ok": self.keyGo,
 			"save": self.keyGo,
-			"cancel": self.keyCancel,
-			"menu": self.doCloseRecursive,
-			"red": self.keyCancel,
-			"green": self.keyGo,
 		}, -2)
 
 		self.session.postScanService = session.nav.getCurrentlyPlayingServiceOrGroup()
@@ -1744,8 +1739,7 @@ class ScanSimple(ConfigListScreen, Screen, CableTransponderSearchSupport, Terres
 				self.nim_enable.append(nimconfig)
 				self.list.append(getConfigListEntry(_("Scan ") + nim.slot_name + " (" + nim.friendly_type + ")", nimconfig))
 
-		ConfigListScreen.__init__(self, self.list)
-		self["introduction"] = self["footer"] = Label(_("Press OK to scan")) # "introduction" is used by all other screens. "footer" just left for skin backwards compatibility
+		ConfigListScreen.__init__(self, self.list, fullUI = True)
 
 	def getNetworksForNim(self, nim):
 		if nim.isCompatible("DVB-S"):
