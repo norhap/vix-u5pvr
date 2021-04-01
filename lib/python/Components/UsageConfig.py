@@ -123,6 +123,12 @@ def InitUsageConfig():
 	config.usage.sort_menus = ConfigYesNo(default = False)
 	config.usage.sort_pluginlist = ConfigYesNo(default = True)
 	config.usage.movieplayer_pvrstate = ConfigYesNo(default = True)
+	
+	config.usage.setupShowDefault = ConfigSelection(default="spaces", choices=[
+		("", _("Don't show default")),
+		("spaces", _("Show default after description")),
+		("newline", _("Show default on new line"))
+	])
 
 	choicelist = []
 	for i in (10, 30):
@@ -1009,7 +1015,7 @@ def InitUsageConfig():
 	audio_language_choices=[
 		("", _("None")),
 		("und", _("Undetermined")),
-		("orj dos ory org esl qaa und mis mul ORY ORJ Audio_ORJ", _("Original")),
+		("orj dos ory org esl qaa und mis mul ORY ORJ Audio_ORJ oth", _("Original")),
 		("ara", _("Arabic")),
 		("eus baq", _("Basque")),
 		("bul", _("Bulgarian")),
@@ -1043,7 +1049,7 @@ def InitUsageConfig():
 		("tha", _("Thai")),
 		("tur Audio_TUR", _("Turkish")),
 		("ukr Ukr", _("Ukrainian")),
-		("NAR", _("Visual impaired commentary"))]
+		("NAR qad", _("Visual impaired commentary"))]
 
 	def setEpgLanguage(configElement):
 		eServiceEvent.setEPGLanguage(configElement.value)
