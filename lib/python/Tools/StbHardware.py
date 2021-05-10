@@ -2,6 +2,7 @@ from fcntl import ioctl
 from struct import pack, unpack
 from os import path
 
+
 def getFPVersion():
 	ret = None
 	try:
@@ -9,13 +10,15 @@ def getFPVersion():
 	except IOError:
 		try:
 			fp = open("/dev/dbox/fp0")
-			ret = ioctl(fp.fileno(),0)
+			ret = ioctl(fp.fileno(), 0)
+			fp.close()
 		except IOError:
 			try:
 				ret = open("/sys/firmware/devicetree/base/bolt/tag", "r").read().rstrip("\0")
 			except:
 				print "getFPVersion failed!"
 	return ret
+
 
 def setFPWakeuptime(wutime):
 	try:
@@ -27,13 +30,14 @@ def setFPWakeuptime(wutime):
 		except IOError:
 			print "setFPWakeupTime failed!"
 
+
 def setRTCoffset():
 	from Components.config import config
 	import time
 	if time.localtime().tm_isdst == 0:
-		forsleep = 7200+time.timezone
+		forsleep = 7200 + time.timezone
 	else:
-		forsleep = 3600-time.timezone
+		forsleep = 3600 - time.timezone
 
 	t_local = time.localtime(int(time.time()))
 
@@ -44,6 +48,7 @@ def setRTCoffset():
 		open("/proc/stb/fp/rtc_offset", "w").write(str(forsleep))
 	except IOError:
 		print "[StbHardware] Error: setRTCoffset failed!"
+
 
 def setRTCtime(wutime):
 	if path.exists("/proc/stb/fp/rtc_offset"):
@@ -56,6 +61,7 @@ def setRTCtime(wutime):
 			ioctl(fp.fileno(), 0x101, pack('L', wutime)) # set wake up
 		except IOError:
 			print "setRTCtime failed!"
+
 
 def getFPWakeuptime():
 	ret = 0
@@ -72,7 +78,9 @@ def getFPWakeuptime():
 			print "[StbHardware] Error: getFPWakeupTime failed!"
 	return ret
 
+
 wasTimerWakeup = None
+
 
 def getFPWasTimerWakeup():
 	global wasTimerWakeup
@@ -91,6 +99,7 @@ def getFPWasTimerWakeup():
 		# clear hardware status
 		clearFPWasTimerWakeup()
 	return wasTimerWakeup
+
 
 def clearFPWasTimerWakeup():
 	try:
