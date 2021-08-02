@@ -13,7 +13,7 @@ from Components.Harddisk import harddiskmanager
 from Components import Ipkg
 from Components.Label import Label
 from Components.Language import language
-from Components.OnlineUpdateCheck import feedsstatuscheck, kernelMismatch
+#from Components.OnlineUpdateCheck import feedsstatuscheck, kernelMismatch
 from Components.PluginComponent import plugins
 from Components.PluginList import PluginList, PluginEntryComponent, PluginCategoryComponent, PluginDownloadComponent
 from Components.Sources.StaticText import StaticText
@@ -243,12 +243,12 @@ class PluginBrowser(Screen, ProtectedScreen):
 
 	def download(self):
 		config.misc.pluginbrowser.po.value = True
-		if not (feedsstatuscheck.adapterAvailable() and feedsstatuscheck.NetworkUp()):
-			self.session.openWithCallback(self.close, MessageBox, _("Your %s %s has no %s access, please check your network settings and make sure you have network cable connected and try again.") % (getMachineBrand(), getMachineName(), feedsstatuscheck.adapterAvailable() and 'internet' or 'network'), type=MessageBox.TYPE_INFO, timeout=30, close_on_any_key=True)
-			return
-		if kernelMismatch():
-			self.session.openWithCallback(self.close, MessageBox, _("The Linux kernel has changed, plugins are not compatible. \nInstall latest image using USB stick or Image Manager."), type=MessageBox.TYPE_INFO, timeout=30, close_on_any_key=True)
-			return
+		#if not (feedsstatuscheck.adapterAvailable() and feedsstatuscheck.NetworkUp()):
+			#self.session.openWithCallback(self.close, MessageBox, _("Your %s %s has no %s access, please check your network settings and make sure you have network cable connected and try again.") % (getMachineBrand(), getMachineName(), feedsstatuscheck.adapterAvailable() and 'internet' or 'network'), type=MessageBox.TYPE_INFO, timeout=30, close_on_any_key=True)
+			#return
+		#if kernelMismatch():
+			#self.session.openWithCallback(self.close, MessageBox, _("The Linux kernel has changed, plugins are not compatible. \nInstall latest image using USB stick or Image Manager."), type=MessageBox.TYPE_INFO, timeout=30, close_on_any_key=True)
+			#return
 		self.session.openWithCallback(self.PluginDownloadBrowserClosed, PluginDownloadBrowser, PluginDownloadBrowser.DOWNLOAD, self.firsttime)
 		self.firsttime = False
 
@@ -512,16 +512,24 @@ class PluginDownloadBrowser(Screen):
 		self.listHeight = listsize.height()
 		if self.type == self.DOWNLOAD:
 			self.type = self.UPDATE
-			if (getImageType() != 'release' and feedsstatuscheck.getFeedsBool() != 'unknown') or (getImageType() == 'release' and feedsstatuscheck.getFeedsBool() not in ('stable', 'unstable')):
-				self["text"].setText(feedsstatuscheck.getFeedsErrorMessage())
-			elif getImageType() != 'release' or (config.softwareupdate.updateisunstable.value == '1' and config.softwareupdate.updatebeta.value):
-				self["text"].setText(_("WARNING: feeds may be unstable.") + '\n' + _("Downloading plugin information. Please wait..."))
-				self.container.execute(self.ipkg + " update")
-			elif config.softwareupdate.updateisunstable.value == '1' and not config.softwareupdate.updatebeta.value:
-				self["text"].setText(_("Sorry feeds seem be in an unstable state, if you wish to use them please enable 'Allow unstable (experimental) updates' in \"Software update settings\"."))
-			else:
-				self.container.execute(self.ipkg + " update")
-		elif self.type == self.REMOVE:
+			#if (getImageType() != 'release' and feedsstatuscheck.getFeedsBool() != 'unknown') or (getImageType() == 'release' and feedsstatuscheck.getFeedsBool() not in ('stable', 'unstable')):
+				#self["text"].setText(feedsstatuscheck.getFeedsErrorMessage())
+			#elif getImageType() != 'release' or (config.softwareupdate.updateisunstable.value == '1' and config.softwareupdate.updatebeta.value):
+				#self["text"].setText(_("WARNING: feeds may be unstable.") + '\n' + _("Downloading plugin information. Please wait..."))
+				#self.container.execute(self.ipkg + " update")
+			#elif config.softwareupdate.updateisunstable.value == '1' and not config.softwareupdate.updatebeta.value:
+				#self["text"].setText(_("Sorry feeds seem be in an unstable state, if you wish to use them please enable 'Allow unstable (experimental) updates' in \"Software update settings\"."))
+			#else:
+				#self.container.execute(self.ipkg + " update")
+		#elif self.type == self.REMOVE:
+		if getImageType():
+			self["text"].setText(_("WARNING: feeds may be unstable.") + '\n' + _("Downloading plugin information. Please wait..."))
+			self.container.execute(self.ipkg + " update")
+		elif config.softwareupdate.updateisunstable.value == '1' and not config.softwareupdate.updatebeta.value:
+			self["text"].setText(_("Sorry feeds seem be in an unstable state, if you wish to use them please enable 'Allow unstable (experimental) updates' in \"Software update settings\"."))
+		else:
+			self.container.execute(self.ipkg + " update")
+		if self.type == self.REMOVE:
 			self.run = 1
 			self.startIpkgListInstalled()
 

@@ -1,5 +1,4 @@
 import six
-
 from Components.config import config
 import os
 import time
@@ -57,9 +56,10 @@ class GetEcmInfo:
 					info[d[0].strip()] = d[1].strip()
 				mgcam = line.strip()
 				if 'ECM' in line:
-					linetmp = mgcam.split(' ')
-					info['eEnc'] = linetmp[1]
-					info['eCaid'] = linetmp[5][2:-1]
+					linetmp = ecm[0][ecm[0].find('CaID 0x')+7:ecm[0].find(',')]
+					linetmp2 = mgcam.split(' ')
+					info['eEnc'] = linetmp2[1]
+					info['eCaid'] = linetmp
 					continue
 				if 'source' in line:
 					linetmp = mgcam.split(' ')
@@ -76,9 +76,9 @@ class GetEcmInfo:
 				if 'SysID' in line:
 					info['prov'] = line.strip()[6:]
 					continue
-				if 'CaID 0x' in line and 'pid 0x' in line:
-					info['caid'] = line[line.find('CaID 0x') + 7:line.find(',')]
-					info['pid'] = line[line.find('pid 0x') + 6:line.find(' =')]
+				if 'CaID 0x' in line and 'pid 0x' in line or 'CaID 0x' in ecm[0] and 'pid 0x' in ecm[0]:
+					info['caid'] = line[line.find('CaID 0x')+7:line.find(',')]
+					info['pid'] = line[line.find('pid 0x')+6:line.find(' =')]
 					info['provid'] = info.get('prov', '0')[:4]
 			data = self.getText()
 			return True
@@ -160,7 +160,6 @@ class GetEcmInfo:
 						else:
 							share = open('/tmp/share.info', 'r').readlines()
 						for line in share:
-							l = six.ensure_str(line)
 							if cardid in line:
 								self.textvalue = line.strip()
 								break
@@ -194,7 +193,7 @@ class GetEcmInfo:
 							self.textvalue = "%s (%ss)" % (response[4], float(response[0]) / 1000)
 						else:
 							self.textvalue = ""
-		decCI = info.get('caid', info.get('CAID', '0'))
-		provid = info.get('provid', info.get('prov', info.get('Provider', '0')))
+		decCI = info.get('CAID', info.get('caid', '0'))
+		provid = info.get('Provider', info.get('prov', info.get('Provider', '0')))
 		ecmpid = info.get('pid', info.get('ECM PID', '0'))
 		return self.textvalue, decCI, provid, ecmpid
