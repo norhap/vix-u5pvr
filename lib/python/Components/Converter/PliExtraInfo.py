@@ -497,15 +497,16 @@ class PliExtraInfo(Poll, Converter, object):
 
 	def createOrbPos(self, feraw):
 		orbpos = feraw.get("orbital_position")
-		if orbpos > 1800:
-			return str((float(3600 - orbpos)) / 10.0) + "\xc2\xb0 W"
-		elif orbpos > 0:
-			return str((float(orbpos)) / 10.0) + "\xc2\xb0 E"
+		if orbpos != None:
+			if orbpos > 1800:
+				return str((float(3600 - orbpos)) / 10.0) + SIGN + "W"
+			elif orbpos > 0:
+				return str((float(orbpos)) / 10.0) + SIGN + "E"
 		return ""
 
 	def createOrbPosOrTunerSystem(self, fedata, feraw):
 		orbpos = self.createOrbPos(feraw)
-		if orbpos is not "":
+		if orbpos != "":
 			return orbpos
 		return self.createTunerSystem(fedata)
 
@@ -624,12 +625,17 @@ class PliExtraInfo(Poll, Converter, object):
 
 	def createMisPls(self, fedata):
 		tmp = ""
-		if fedata.get("is_id") > -1:
-			tmp = "MIS %d" % fedata.get("is_id")
-		if fedata.get("pls_code") > 0:
-			tmp = addspace(tmp) + "%s %d" % (fedata.get("pls_mode"), fedata.get("pls_code"))
-		if fedata.get("t2mi_plp_id") > -1:
-			tmp = addspace(tmp) + "T2MI %d PID %d" % (fedata.get("t2mi_plp_id"), fedata.get("t2mi_pid"))
+		is_id = fedata.get("is_id")
+		pls_mode = fedata.get("pls_mode")
+		pls_code = fedata.get("pls_code")
+		t2mi_plp_id = fedata.get("t2mi_plp_id")
+		t2mi_pid = fedata.get("t2mi_pid")
+		if is_id != None and is_id > -1:
+			tmp = "MIS %d" % is_id
+		if pls_mode != None and pls_code != None and pls_code > 0:
+			tmp = addspace(tmp) + "%s %d" % (pls_mode, pls_code)
+		if t2mi_pid != None and t2mi_plp_id != None and t2mi_plp_id > -1:
+			tmp = addspace(tmp) + "T2MI %d PID %d" % (t2mi_plp_id, t2mi_pid)
 		return tmp
 
 	@cached
@@ -894,6 +900,6 @@ class PliExtraInfo(Poll, Converter, object):
 			if what[1] == iPlayableService.evEnd:
 				self.feraw = self.fedata = None
 			Converter.changed(self, what)
-		elif what[0] == self.CHANGED_POLL and self.updateFEdata is not None:
+		elif what[0] == self.CHANGED_POLL and self.updateFEdata != None:
 			self.updateFEdata = False
 			Converter.changed(self, what)
