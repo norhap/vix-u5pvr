@@ -12,12 +12,21 @@ from enigma import eDVBDB, eEPGCache, setTunerTypePriorityOrder, setPreferredTun
 
 from Components.Harddisk import harddiskmanager
 from Components.config import ConfigSubsection, ConfigYesNo, config, ConfigSelection, ConfigText, ConfigNumber, ConfigSet, ConfigLocations, NoSave, ConfigClock, ConfigInteger, ConfigBoolean, ConfigPassword, ConfigIP, ConfigSlider, ConfigSelectionNumber
+from Tools.camcontrol import CamControl
 from Tools.Directories import resolveFilename, SCOPE_HDD, SCOPE_TIMESHIFT, defaultRecordingLocation
 from Components.NimManager import nimmanager
 from Components.ServiceList import refreshServiceList
 from Components.SystemInfo import SystemInfo
 from Tools.HardwareInfo import HardwareInfo
 
+# A raw writer for config changes to be read by the logger without
+# getting a time-stamp prepended.
+# stderr expect unicode, not str, so we decode as utf-8
+#
+import io
+def raw_stderr_print(text):
+	with io.open(2, mode="wt", closefd=False) as myerr:
+		myerr.write(text)
 
 def InitUsageConfig():
 	config.version = ConfigNumber(default=0)
@@ -862,7 +871,15 @@ def InitUsageConfig():
 
 	config.crash = ConfigSubsection()
 	config.crash.enabledebug = ConfigYesNo(default=False)
+	config.crash.e2_debug_level = ConfigSelection(default=4, choices=[(3, _("No Logs")), (4, _("Debug Logs")), (5, _("Debug+ Logs"))])
 	config.crash.debugloglimit = ConfigSelectionNumber(min=1, max=10, stepwidth=1, default=4, wraparound=True)
+
+# Just echo CHANGE var=val for the logger process to find.
+# Send a newline at the start in case some background process hasn't
+#
+	def report_debugloglimit_change(configElement):
+		raw_stderr_print("\nCHANGE config.crash.debugloglimit=%d\n" % config.crash.debugloglimit.value)
+	config.crash.debugloglimit.addNotifier(report_debugloglimit_change, immediate_feedback=False)
 	config.crash.daysloglimit = ConfigSelectionNumber(min=1, max=30, stepwidth=1, default=8, wraparound=True)
 	config.crash.sizeloglimit = ConfigSelectionNumber(min=1, max=20, stepwidth=1, default=10, wraparound=True)
 	# config.crash.logtimeformat sets ENIGMA_DEBUG_TIME environmental variable on enigma2 start from enigma2.sh
@@ -880,6 +897,13 @@ def InitUsageConfig():
 			if p.mountpoint != '/':
 				debugpath.append((p.mountpoint + 'logs/', d))
 	config.crash.debug_path = ConfigSelection(default="/home/root/logs/", choices=debugpath)
+
+# Just echo CHANGE var=val for the logger process to find.
+# Send a newline at the start in case some background process hasn't
+#
+	def report_debugpath_change(configElement):
+		raw_stderr_print("\nCHANGE config.crash.debug_path=%s\n" % config.crash.debug_path.value)
+	config.crash.debug_path.addNotifier(report_debugpath_change, immediate_feedback=False)
 
 	def updatedebug_path(configElement):
 		if not os.path.exists(config.crash.debug_path.value):
@@ -1085,6 +1109,11 @@ def InitUsageConfig():
 	config.oscaminfo.ip = ConfigIP(default=[127, 0, 0, 1], auto_jump=True)
 	config.oscaminfo.port = ConfigInteger(default=16002, limits=(0, 65536))
 	config.oscaminfo.intervall = ConfigSelectionNumber(min=1, max=600, stepwidth=1, default=10, wraparound=True)
+	config.misc.enableCamscript = ConfigYesNo(default=False)
+	config.misc.softcams = ConfigSelection(default="None", choices=CamControl("softcam").getList())
+	config.misc.softcamrestarts = ConfigSelection(default="", choices=[
+					("", _("Don't restart")),
+					("s", _("Restart softcam"))])	
 	SystemInfo["OScamInstalled"] = False
 
 	config.cccaminfo = ConfigSubsection()
