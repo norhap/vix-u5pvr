@@ -841,6 +841,7 @@ def InitUsageConfig():
 	config.softwareupdate.updatefound = NoSave(ConfigBoolean(default=False))
 	config.softwareupdate.updatebeta = ConfigYesNo(default=False)
 	config.softwareupdate.updateisunstable = ConfigInteger(default=0)
+	config.softwareupdate.showinextensions = ConfigSelection(default="no", choices=[("no", _("no")), ("yes", _("yes")), ("available", _("only when available"))])
 
 	config.timeshift = ConfigSubsection()
 	choicelist = [("0", "Disabled")]
@@ -982,7 +983,7 @@ def InitUsageConfig():
 		if i == 0:
 			subtitle_delay_choicelist.append(("0", _("No delay")))
 		else:
-			subtitle_delay_choicelist.append((str(i), _("%2.1f sec") % (i // 90000.)))
+			subtitle_delay_choicelist.append((str(i), _("%2.1f sec") % (i / 90000.)))
 	config.subtitles.subtitle_noPTSrecordingdelay = ConfigSelection(default="315000", choices=subtitle_delay_choicelist)
 
 	config.subtitles.dvb_subtitles_yellow = ConfigYesNo(default=False)
