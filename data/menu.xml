@@ -200,12 +200,7 @@ self.session.open(SABnzbdSetupScreen)
 		</menu>
 
 		<!-- Menu / Setup / HDMI-CEC -->
-		<item entryID="hdmicec" level="0" text="HDMI CEC" weight="99" requires="HDMICEC">
-			<code>
-from Plugins.SystemPlugins.HdmiCEC.plugin import HdmiCECSetupScreen
-self.session.open(HdmiCECSetupScreen)
-			</code>
-		</item>
+		<item entryID="hdmicec" level="0" text="HDMI-CEC" weight="55" requires="hasHdmiCec"><setup id="HdmiCec"/></item>
 	</menu>
 
 	<!-- Menu / Plugins -->
