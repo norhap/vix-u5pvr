@@ -1,7 +1,7 @@
-import six
-from Components.config import config
-import os
+from os import stat
 import time
+
+from Components.config import config
 
 ECM_INFO = '/tmp/ecm.info'
 EMPTY_ECM_INFO = ' ', '0', '0', '0'
@@ -22,7 +22,7 @@ class GetEcmInfo:
 		global info
 		global ecm
 		try:
-			ecm_time = os.stat(ECM_INFO).st_mtime
+			ecm_time = stat(ECM_INFO).st_mtime
 		except:
 			ecm_time = old_ecm_time
 			data = EMPTY_ECM_INFO
@@ -34,10 +34,7 @@ class GetEcmInfo:
 			info = {'ecminterval2': oecmi1, 'ecminterval1': oecmi0}
 			old_ecm_time = ecm_time
 			try:
-				if six.PY2:
-					ecm = open(ECM_INFO, 'rb').readlines()
-				else:
-					ecm = open(ECM_INFO, 'r').readlines()
+				ecm = open(ECM_INFO, 'r').readlines()
 			except:
 				ecm = ''
 			info['caid'] = "0"
@@ -155,10 +152,7 @@ class GetEcmInfo:
 				if info['decode'] == 'Network':
 					cardid = 'id:' + info.get('prov', '')
 					try:
-						if six.PY2:
-							share = open('/tmp/share.info', 'rb').readlines()
-						else:
-							share = open('/tmp/share.info', 'r').readlines()
+						share = open('/tmp/share.info', 'r').readlines()
 						for line in share:
 							if cardid in line:
 								self.textvalue = line.strip()

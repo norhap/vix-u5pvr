@@ -1,6 +1,3 @@
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import division
 import six
 
 from Screens.Screen import Screen
@@ -315,7 +312,7 @@ class CableTransponderSearchSupport:
 			cmd = "%s --blindscan %d" % (exe_path, nim_idx)
 		else:
 			bin_name = GetCommand(nim_idx)
-			exe_path = "/usr/bin/%s" % bin_name
+			exe_path = "/usr/bin/%s" % bin_name.split()[0]
 			cmd = "%s --init --scan --verbose --wakeup --inv 2 --bus %d" % (bin_name, bus)
 
 		if not fileExists(exe_path):
@@ -868,7 +865,6 @@ class ScanSetup(ConfigListScreen, Screen, CableTransponderSearchSupport, Terrest
 		self.list.append(getConfigListEntry(_("Clear before scan"), self.scan_clearallservices, _("Remove the services on scanned transponders before re-adding services?")))
 		self.list.append(getConfigListEntry(_("Only free scan"), self.scan_onlyfree, _("Choose whether to scan for free services only or whether to include paid/encrypted services too.")))
 		self["config"].list = self.list
-		self["config"].l.setList(self.list)
 
 	def Satexists(self, tlist, pos):
 		for x in tlist:
