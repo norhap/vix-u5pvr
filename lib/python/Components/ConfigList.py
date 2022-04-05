@@ -204,10 +204,18 @@ class ConfigListScreen:
 			"showVirtualKeyboard": (self.keyText, _("Display the virtual keyboard for data entry"))
 		}, prio=1, description=_("Common Setup Actions"))
 		self["virtualKeyBoardActions"].setEnabled(False)
+
+		# Temporary support for legacy code and plugins that hasn't yet been updated (next 4 lines).
+		self["config_actions"] = DummyActions()
+		self["config_actions"].setEnabled = self.dummyConfigActions
+		self["VirtualKB"] = DummyActions()
+		self["VirtualKB"].setEnabled = self.dummyVKBActions
+
 		self["config"] = ConfigList(list, session=session)
 		self.setCancelMessage(None)
 		self.setRestartMessage(None)
 		self.onChangedEntry = []
+		self.onSave = []
 		if self.noNativeKeys not in self.onLayoutFinish:
 			self.onLayoutFinish.append(self.noNativeKeys)
 		if self.handleInputHelpers not in self["config"].onSelectionChanged:
@@ -374,6 +382,8 @@ class ConfigListScreen:
 		self["config"].handleKey(ACTIONKEY_0 + number, self.entryChanged)
 
 	def keySave(self):
+		for notifier in self.onSave:
+			notifier()
 		if self.saveAll():
 			self.session.openWithCallback(self.restartConfirm, MessageBox, self.restartMsg, default=True, type=MessageBox.TYPE_YESNO)
 		else:
@@ -393,6 +403,19 @@ class ConfigListScreen:
 				item[1].save()
 		configfile.save()
 		return restart
+
+	def addSaveNotifier(self, notifier):
+		if callable(notifier):
+			self.onSave.append(notifier)
+		else:
+			raise TypeError("[ConfigList] Error: Notifier must be callable!")
+
+	def removeSaveNotifier(self, notifier):
+		while notifier in self.onSave:
+			self.onSave.remove(notifier)
+
+	def clearSaveNotifiers(self):
+		self.onSave = []
 
 	def keyCancel(self):
 		self.closeConfigList(())
@@ -423,3 +446,27 @@ class ConfigListScreen:
 
 	def run(self):  # Allow ConfigList based screens to be processed from the Wizard.
 		self.keySave()
+
+	def dummyConfigActions(self, value):  # Temporary support for legacy code and plugins that hasn't yet been updated.
+		self["configActions"].setEnabled(value)
+		self["navigationActions"].setEnabled(value)
+		self["menuConfigActions"].setEnabled(value)
+		self["charConfigActions"].setEnabled(value)
+		self["editConfigActions"].setEnabled(value)
+
+	def dummyVKBActions(self, value):  # Temporary support for legacy code and plugins that hasn't yet been updated.
+		self["virtualKeyBoardActions"].setEnabled(value)
+
+
+class DummyActions:  # Temporary support for legacy code and plugins that hasn't yet been updated.
+	def setEnabled(self, enabled):
+		pass
+
+	def destroy(self):
+		pass
+
+	def execBegin(self):
+		pass
+
+	def execEnd(self):
+		pass
