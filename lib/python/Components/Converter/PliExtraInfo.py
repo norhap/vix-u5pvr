@@ -396,7 +396,7 @@ class PliExtraInfo(Poll, Converter, object):
 				pass
 			f.close()
 
-		fps = str((video_rate + 500) / 1000)
+		fps = str((video_rate + 500) // 1000)
 		gamma = ("SDR", "HDR", "HDR10", "HLG", "")[info.getInfo(iServiceInformation.sGamma)]
 		return str(video_width) + "x" + str(video_height) + video_pol + fps + addspace(gamma)
 
