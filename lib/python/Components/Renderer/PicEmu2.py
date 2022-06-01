@@ -122,11 +122,11 @@ class PicEmu2(Renderer):
 									## Should write name be small letters
 									if ("ncam" in value):
 										sname = "ncam"
-									elif fileHas("/tmp/ecm.info","caid:"):
+									elif fileHas("/tmp/ecm.info", "caid:"):
 										sname = "oscam"
 									elif ("mgcamd" in value):
 										sname = "mgcamd"
-									elif fileHas("/tmp/ecm.info","CAID:"):
+									elif fileHas("/tmp/ecm.info", "CAID:"):
 										sname = "wicardd"
 									elif ("gbox" in value):
 										sname = "gbox"
