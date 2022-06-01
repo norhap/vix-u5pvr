@@ -134,4 +134,3 @@ class SoftcamScript(Setup):
 
 	def restartSoftcam(self):
 		self.restart(device="s")
-

@@ -417,7 +417,7 @@ class RecordTimerEntry(TimerEntry):
 	def sendactivesource(self):
 		if SystemInfo["hasHdmiCec"] and config.hdmicec.enabled.value and config.hdmicec.sourceactive_zaptimers.value:	# Command the TV to switch to the correct HDMI input when zap timers activate
 			import struct
-			from enigma import eHdmiCEC	
+			from enigma import eHdmiCEC
 			msgaddress = 0x0f # use broadcast for active source command
 			cmd = 0x82	# 130
 			physicaladdress = eHdmiCEC.getInstance().getPhysicalAddress()
@@ -426,8 +426,8 @@ class RecordTimerEntry(TimerEntry):
 				data = data.decode(("UTF-8"))
 			except:
 				data = data.decode("ISO-8859-1", "ignore")
-				print("[RecordTimer[sendactivesource] data decode failed with utf-8, trying iso-8859-1")			
-			eHdmiCEC.getInstance().sendMessage(msgaddress, cmd, data, len(data))			
+				print("[RecordTimer[sendactivesource] data decode failed with utf-8, trying iso-8859-1")
+			eHdmiCEC.getInstance().sendMessage(msgaddress, cmd, data, len(data))
 			print("[TIMER] sourceactive was sent")
 
 	def _bouquet_search(self):

@@ -1,6 +1,6 @@
 #
-#	derived from code by OpenVision now in OE-A replacing earlier BoxBranding extraction code  code by Huevos 
-#	this version uses the base functionality without reinventing the wheel  
+#	derived from code by OpenVision now in OE-A replacing earlier BoxBranding extraction code  code by Huevos
+#	this version uses the base functionality without reinventing the wheel
 #
 import errno
 
@@ -10,8 +10,8 @@ class BoxConfig:  # To maintain data integrity class variables should not be acc
 		self.procList = []
 		self.boxInfo = {}
 		path = "%s/usr/lib/enigma.info" % root
-		# print("[BoxConfig] BoxConfig Info path = %s." % path)	
-		lines = None		
+		# print("[BoxConfig] BoxConfig Info path = %s." % path)
+		lines = None
 		try:
 			with open(path, "r") as fd:
 				lines = fd.read().splitlines()
@@ -30,7 +30,7 @@ class BoxConfig:  # To maintain data integrity class variables should not be acc
 			self.procList = sorted(self.procList)
 			# print("[BoxConfig] Information file data loaded into BoxConfig.")
 			# print("[BoxConfig] ProcList = %s." % self.procList)
-			# print("[BoxConfig] BoxInfo = %s." % self.boxInfo)			
+			# print("[BoxConfig] BoxInfo = %s." % self.boxInfo)
 		else:
 			print("[BoxConfig] ERROR: Information file is not available!  The system is unlikely to boot or operate correctly.")
 

@@ -45,7 +45,7 @@ def check_NAMEBIN2():
 	NAMEBIN2 = "OScam"
 	if fileExists("/tmp/.ncam/ncam.version"):
 		NAMEBIN2 = "Ncam"
-	return NAMEBIN2	
+	return NAMEBIN2
 
 
 f = 1

@@ -115,7 +115,7 @@ class Menu(Screen, HelpableScreen, ProtectedScreen):
 					return
 			elif not SystemInfo.get(requires, False):
 				return
-		# print("[Menu][addMenu] Menu text=", node.get("text", "??"))				
+		# print("[Menu][addMenu] Menu text=", node.get("text", "??"))
 		MenuTitle = str(_(node.get("text", "??")))
 		entryID = node.get("entryID", "undefined")
 		weight = node.get("weight", 50)
@@ -152,7 +152,7 @@ class Menu(Screen, HelpableScreen, ProtectedScreen):
 			return
 		# print("[Menu][addItem] item text=", node.get("text", "* Undefined *"))
 		item_text = str(node.get("text", "* Undefined *"))
-		
+
 		if item_text:
 			item_text = _(item_text)
 		entryID = node.get("entryID", "undefined")
@@ -425,7 +425,7 @@ class Menu(Screen, HelpableScreen, ProtectedScreen):
 		self.list.sort(key=lambda listweight: int(listweight[4]))
 
 	# for horizontal menu
-	
+
 	def updateMenuHorz(self):
 		i = self.horzIndex
 		L = self.menulength
@@ -434,7 +434,7 @@ class Menu(Screen, HelpableScreen, ProtectedScreen):
 		self["label3"].setText(self.list[i][0])
 		self["label4"].setText(self.list[(i + 1) % L][0] if L > 1 else "")
 		self["label5"].setText(self.list[(i + 2) % L][0] if L > 3 else "")
-		
+
 	def keyLeftHorz(self):
 		self.horzIndex = (self.horzIndex - 1) % self.menulength
 		self.updateMenuHorz()
@@ -448,7 +448,7 @@ class Menu(Screen, HelpableScreen, ProtectedScreen):
 	def horizontalSelectionChanged(self):
 		for x in self.onHorizontalSelectionChanged:
 			if callable(x):
-				x()		
+				x()
 
 	def initMenuHorizontal(self):
 		self["label1"] = StaticText()

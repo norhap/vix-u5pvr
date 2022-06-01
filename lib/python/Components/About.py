@@ -266,7 +266,7 @@ def getBoxUptime():
 		return formatUptime(seconds)
 	except:
 		return ''
-		
+
 
 def formatUptime(seconds):
 	out = ''
