@@ -166,6 +166,7 @@ class MovieInfo(Converter):
 
 	def __directoryScanWorker(self):
 		size = 0
+
 		def scanDirectory(path):
 			nonlocal size
 			for entry in scandir(path):

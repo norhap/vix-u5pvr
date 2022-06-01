@@ -4289,7 +4289,6 @@ class InfoBarSubtitleSupport():
 			self.toggleenableSubtitle(subtitlelist[0])
 			self.subtitle_window.showMessage(_("Subtitles on"), False)
 
-
 	def toggleenableSubtitle(self, newSubtitle):
 		if self.selected_subtitle != newSubtitle:
 			self.enableSubtitle(newSubtitle)

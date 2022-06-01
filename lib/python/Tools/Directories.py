@@ -78,6 +78,7 @@ scopeLCDSkin = defaultPaths[SCOPE_LCDSKIN][0]
 scopeFonts = defaultPaths[SCOPE_FONTS][0]
 scopePlugins = defaultPaths[SCOPE_PLUGINS][0]
 
+
 def addInList(*paths):
 	return [path for path in paths if pathIsdir(path)]
 
@@ -240,6 +241,7 @@ def resolveFilename(scope, base="", path_prefix=None):
 		path = "%s:%s" % (path, suffix)
 	return path
 
+
 def fileReadLine(filename, default=None, *args, **kwargs):
 	try:
 		with open(filename, "r") as fd:
@@ -400,6 +402,7 @@ def fileReadXML(filename, default=None, *args, **kwargs):
 		elif isinstance(default, Element):
 			dom = default
 	return dom
+
 
 def getRecordingFilename(basename, dirname=None):
 	# Filter out non-allowed characters.

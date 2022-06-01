@@ -33,17 +33,20 @@ elif fileExists("/tmp/.ncam/ncam.version"):
 	NAMEBIN = "ncam"
 	NAMEBIN2 = "Ncam"
 
+
 def check_NAMEBIN():
 	NAMEBIN = "oscam"
 	if fileExists("/tmp/.ncam/ncam.version"):
 		NAMEBIN = "ncam"
 	return NAMEBIN
 
+
 def check_NAMEBIN2():
 	NAMEBIN2 = "OScam"
 	if fileExists("/tmp/.ncam/ncam.version"):
 		NAMEBIN2 = "Ncam"
 	return NAMEBIN2	
+
 
 f = 1
 sizeH = 700
@@ -525,7 +528,6 @@ class OscamInfoMenu(Screen):
 				self.session.open(OscamInfoConfigScreen)
 		else:
 			self.session.open(MessageBox, _("Oscam/Ncam not running - start Cam to obtain information."), MessageBox.TYPE_INFO)
-
 
 	def chooseReaderCallback(self, retval):
 		print(retval)

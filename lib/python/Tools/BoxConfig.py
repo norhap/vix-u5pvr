@@ -34,7 +34,6 @@ class BoxConfig:  # To maintain data integrity class variables should not be acc
 		else:
 			print("[BoxConfig] ERROR: Information file is not available!  The system is unlikely to boot or operate correctly.")
 
-
 	def processValue(self, value):
 		if value is None:
 			pass

@@ -430,7 +430,6 @@ class RecordTimerEntry(TimerEntry):
 			eHdmiCEC.getInstance().sendMessage(msgaddress, cmd, data, len(data))			
 			print("[TIMER] sourceactive was sent")
 
-
 	def _bouquet_search(self):
 		from Screens.ChannelSelection import ChannelSelection
 		ChannelSelectionInstance = ChannelSelection.instance
