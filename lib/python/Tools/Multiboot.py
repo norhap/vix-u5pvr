@@ -26,7 +26,7 @@ def getMultibootslots():
 	BoxInfo = SystemInfo["BoxInfo"]
 	tmp.dir = tempfile.mkdtemp(prefix="getMultibootslots")
 	tmpname = tmp.dir 
-	for device in ("/dev/mmcblk0p1", "/dev/mmcblk1p1", "/dev/mmcblk0p3", "/dev/mmcblk0p4", "/dev/block/by-name/bootoptions" ):
+	for device in ("/dev/mmcblk0p1", "/dev/mmcblk1p1", "/dev/mmcblk0p3", "/dev/mmcblk0p4", "/dev/block/by-name/bootoptions"):
 		if bootslots:
 			continue 
 		if path.exists(device):

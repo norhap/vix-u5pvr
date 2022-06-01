@@ -15,7 +15,7 @@ from ServiceReference import ServiceReference
 from enigma import eServiceReference, eActionMap
 from Components.Label import Label
 
-ButtonSetupKeys = [	(_("Red"), "red", "Infobar/openSingleServiceEPG/1"),
+ButtonSetupKeys = [(_("Red"), "red", "Infobar/openSingleServiceEPG/1"),
 	(_("Red long"), "red_long", "Infobar/activateRedButton"),
 	(_("Green"), "green", ""),
 	(_("Green long"), "green_long", "Infobar/showAutoTimerList"),
@@ -86,7 +86,7 @@ ButtonSetupKeys = [	(_("Red"), "red", "Infobar/openSingleServiceEPG/1"),
 	(_("F4"), "f4", ""),
 	(_("F4 long"), "f4_long", ""),
 	(_("WWW"), "www", ""),
-	(_("WWW long"), "www_long", "") ]
+	(_("WWW long"), "www_long", "")]
 
 config.misc.ButtonSetup = ConfigSubsection()
 config.misc.ButtonSetup.additional_keys = ConfigYesNo(default=True)
