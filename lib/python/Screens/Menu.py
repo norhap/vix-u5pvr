@@ -429,11 +429,11 @@ class Menu(Screen, HelpableScreen, ProtectedScreen):
 	def updateMenuHorz(self):
 		i = self.horzIndex
 		L = self.menulength
-		self["label1"].setText(self.list[(i-2)%L][0] if L > 3 else "")
-		self["label2"].setText(self.list[(i-1)%L][0] if L > 1 else "")
+		self["label1"].setText(self.list[(i - 2) % L][0] if L > 3 else "")
+		self["label2"].setText(self.list[(i - 1) % L][0] if L > 1 else "")
 		self["label3"].setText(self.list[i][0])
-		self["label4"].setText(self.list[(i+1)%L][0] if L > 1 else "")
-		self["label5"].setText(self.list[(i+2)%L][0] if L > 3 else "")
+		self["label4"].setText(self.list[(i + 1) % L][0] if L > 1 else "")
+		self["label5"].setText(self.list[(i + 2) % L][0] if L > 3 else "")
 		
 	def keyLeftHorz(self):
 		self.horzIndex = (self.horzIndex - 1) % self.menulength
@@ -470,7 +470,7 @@ class Menu(Screen, HelpableScreen, ProtectedScreen):
 class MenuHorizontalSummary(ScreenSummary):
 	def __init__(self, session, parent):
 		ScreenSummary.__init__(self, session, parent=parent)
-		self.skinName =["MenuHorizontalSummary"]
+		self.skinName = ["MenuHorizontalSummary"]
 		self["title"] = StaticText(self.parent.title)
 		self["entry"] = StaticText()
 		if self.addWatcher not in self.onShow:

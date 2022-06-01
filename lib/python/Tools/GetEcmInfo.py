@@ -53,7 +53,7 @@ class GetEcmInfo:
 					info[d[0].strip()] = d[1].strip()
 				mgcam = line.strip()
 				if 'ECM' in line:
-					linetmp = ecm[0][ecm[0].find('CaID 0x')+7:ecm[0].find(',')]
+					linetmp = ecm[0][ecm[0].find('CaID 0x') + 7:ecm[0].find(',')]
 					linetmp2 = mgcam.split(' ')
 					info['eEnc'] = linetmp2[1]
 					info['eCaid'] = linetmp
@@ -74,8 +74,8 @@ class GetEcmInfo:
 					info['prov'] = line.strip()[6:]
 					continue
 				if 'CaID 0x' in line and 'pid 0x' in line or 'CaID 0x' in ecm[0] and 'pid 0x' in ecm[0]:
-					info['caid'] = line[line.find('CaID 0x')+7:line.find(',')]
-					info['pid'] = line[line.find('pid 0x')+6:line.find(' =')]
+					info['caid'] = line[line.find('CaID 0x') + 7:line.find(',')]
+					info['pid'] = line[line.find('pid 0x') + 6:line.find(' =')]
 					info['provid'] = info.get('prov', '0')[:4]
 			data = self.getText()
 			return True
