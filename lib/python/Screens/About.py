@@ -21,6 +21,7 @@ from Tools.Directories import fileExists, fileCheck, pathExists, isPluginInstall
 from Tools.Multiboot import GetCurrentImageMode
 from Tools.StbHardware import getFPVersion
 
+
 class About(Screen):
 	def __init__(self, session):
 		Screen.__init__(self, session)
