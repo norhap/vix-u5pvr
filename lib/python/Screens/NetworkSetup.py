@@ -1831,7 +1831,7 @@ class NetworkFtp(NSCommon, Screen):
 		self["key_red"] = Label()
 		self["key_yellow"] = Label(_("Autostart"))
 		self["key_blue"] = Label()
-		self.Console = Console()		
+		self.Console = Console()
 		self.ConsoleB = Console(binary=True)
 		self.my_ftp_active = False
 		self.my_ftp_run = False
@@ -2057,7 +2057,7 @@ class NetworkVpnLog(Screen):
 		self.skinName = "NetworkInadynLog"
 		self["infotext"] = ScrollLabel("")
 		self.Console = Console()
-		self.ConsoleB = Console(binary=True)		
+		self.ConsoleB = Console(binary=True)
 		self["actions"] = ActionMap(["WizardActions", "ColorActions"],
 		{
 			"ok": self.close,
@@ -2093,7 +2093,7 @@ class NetworkSamba(NSCommon, Screen):
 		self["key_yellow"] = Label(_("Autostart"))
 		self["key_blue"] = Label(_("Show Log"))
 		self.Console = Console()
-		self.ConsoleB = Console(binary=True)		
+		self.ConsoleB = Console(binary=True)
 		self.my_Samba_active = False
 		self.my_Samba_run = False
 		self["actions"] = ActionMap(["WizardActions", "ColorActions"],
@@ -2172,7 +2172,7 @@ class NetworkSambaLog(Screen):
 		self.skinName = "NetworkInadynLog"
 		self["infotext"] = ScrollLabel("")
 		self.Console = Console()
-		self.ConsoleB = Console(binary=True)		
+		self.ConsoleB = Console(binary=True)
 		self["actions"] = ActionMap(["WizardActions", "ColorActions"],
 		{
 			"ok": self.close,
@@ -2310,7 +2310,7 @@ class NetworkInadyn(NSCommon, Screen):
 			"blue": self.inaLog
 		})
 		self.Console = Console()
-		self.ConsoleB = Console(binary=True)		
+		self.ConsoleB = Console(binary=True)
 		self.service_name = "inadyn-mt"
 		self.onLayoutFinish.append(self.InstallCheck)
 		self.reboot_at_end = False
@@ -2613,7 +2613,7 @@ class NetworkuShare(NSCommon, Screen):
 			"blue": self.ushareLog
 		})
 		self.Console = Console()
-		self.ConsoleB = Console(binary=True)		
+		self.ConsoleB = Console(binary=True)
 		self.service_name = "ushare"
 		self.onLayoutFinish.append(self.InstallCheck)
 		self.reboot_at_end = False
@@ -3045,7 +3045,7 @@ class NetworkMiniDLNA(NSCommon, Screen):
 			"blue": self.minidlnaLog
 		})
 		self.Console = Console()
-		self.ConsoleB = Console(binary=True)		
+		self.ConsoleB = Console(binary=True)
 		self.service_name = "minidlna"
 		self.onLayoutFinish.append(self.InstallCheck)
 		self.reboot_at_end = False

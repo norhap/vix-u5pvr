@@ -53,7 +53,7 @@ class About(Screen):
 		self["lab3"] = StaticText(_("Support at") + " www.world-of-satellite.com")
 
 		AboutText += _("Model:\t%s %s\n") % (getMachineBrand(), getMachineName())
-		
+
 		if about.getChipSetString() != _("unavailable"):
 			if SystemInfo["HasHiSi"]:
 				AboutText += _("Chipset:\tHiSilicon %s\n") % about.getChipSetString().upper()
@@ -151,11 +151,11 @@ class About(Screen):
 		if isPluginInstalled("ServiceApp") and config.plugins.serviceapp.servicemp3.replace.value == True:
 			AboutText += _("4097 iptv player:\t%s\n") % config.plugins.serviceapp.servicemp3.player.value
 		else:
-			AboutText += _("4097 iptv player:\tDefault player\n")	
+			AboutText += _("4097 iptv player:\tDefault player\n")
 		AboutText += _("Python:\t%s\n") % about.getPythonVersionString()
-		flashDate = about.getFlashDateString()[8:] + about.getFlashDateString()[4:8] + about.getFlashDateString()[0:4] 
+		flashDate = about.getFlashDateString()[8:] + about.getFlashDateString()[4:8] + about.getFlashDateString()[0:4]
 		AboutText += _("Installed:\t%s\n") % flashDate
-		lastUpdate = getEnigmaVersionString()[8:] + getEnigmaVersionString()[4:8] + getEnigmaVersionString()[0:4] 
+		lastUpdate = getEnigmaVersionString()[8:] + getEnigmaVersionString()[4:8] + getEnigmaVersionString()[0:4]
 		AboutText += _("Last update:\t%s\n") % lastUpdate
 		AboutText += _("E2 (re)starts:\t%s\n") % config.misc.startCounter.value
 		uptime = about.getBoxUptime()
