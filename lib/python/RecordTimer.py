@@ -196,13 +196,13 @@ class RecordTimerEntry(TimerEntry):
 		assert isinstance(serviceref, eServiceReference)
 
 		if serviceref and serviceref.toString()[:4] in config.recording.setstreamto1.value: # check if to convert IPTV services (4097, etc) to "1"
-			serviceref = eServiceReference("1" + serviceref.toString()[4:])				
+			serviceref = eServiceReference("1" + serviceref.toString()[4:])
 
 		if serviceref and serviceref.isRecordable():
 			self.service_ref = serviceref
 		else:
 			self.service_ref = eServiceReference()
-		# print("[RecordTimer][RecordTimerEntry2] serviceref", self.service_ref)				
+		# print("[RecordTimer][RecordTimerEntry2] serviceref", self.service_ref)
 		self.eit = eit
 		self.dontSave = False
 		self.name = name
@@ -992,11 +992,11 @@ class RecordTimer(Timer):
 		# and SystemApp has player enabled, then skip recording.
 		# Or always skip if in ("5001", "5002") as these cannot be recorded.
 		if w.service_ref.toString().startswith("4097:") and Directories.isPluginInstalled("ServiceApp") and config.plugins.serviceapp.servicemp3.replace.value == True or w.service_ref.toString()[:4] in ("5001", "5002"):
-			print("[RecordTimer][doActivate] found Serviceapp & player enabled - disable this timer recording")		
+			print("[RecordTimer][doActivate] found Serviceapp & player enabled - disable this timer recording")
 			w.state = RecordTimerEntry.StateEnded
 			from Tools.Notifications import AddPopup
 			from Screens.MessageBox import MessageBox
-			AddPopup(_("Recording IPTV with systemapp enabled, timer ended!\nPlease recheck it!"), type=MessageBox.TYPE_ERROR, timeout=0, id="TimerRecordingFailed")		
+			AddPopup(_("Recording IPTV with systemapp enabled, timer ended!\nPlease recheck it!"), type=MessageBox.TYPE_ERROR, timeout=0, id="TimerRecordingFailed")
 		# when activating a timer which has already passed,
 		# simply abort the timer. don't run trough all the stages.
 		elif w.shouldSkip():
