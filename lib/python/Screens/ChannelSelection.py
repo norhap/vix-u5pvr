@@ -842,7 +842,7 @@ class ChannelSelectionEPG(InfoBarButtonSetup, HelpableScreen):
 					cb_func2 = lambda ret: self.editTimer(timer)
 					menu = [(_("Delete Timer"), 'CALLFUNC', self.RemoveTimerDialogCB, cb_func1), (_("Edit Timer"), 'CALLFUNC', self.RemoveTimerDialogCB, cb_func2)]
 					self.ChoiceBoxDialog = self.session.instantiateDialog(ChoiceBox, title=_("Select action for timer %s:") % eventname, list=menu, keys=['green', 'blue'], skin_name="RecordTimerQuestion")
-					selx, sely = self.serviceList.getSelectionPosition()
+					selx, sely = self.servicelist.getSelectionPosition()
 					self.ChoiceBoxDialog.instance.move(ePoint(selx - self.ChoiceBoxDialog.instance.size().width(), self.instance.position().y() + sely))
 				self.showChoiceBoxDialog()
 				break
@@ -1998,6 +1998,8 @@ config.servicelist.startupmode = ConfigText(default='tv')
 
 class ChannelSelection(ChannelSelectionEdit, ChannelSelectionBase, ChannelSelectionEPG, SelectionEventInfo):
 	instance = None
+
+	ALLOW_SUSPEND = True
 
 	def __init__(self, session):
 		ChannelSelectionBase.__init__(self, session)
