@@ -15,9 +15,11 @@ from Tools.BoxConfig import BoxConfig
 class tmp:
 	dir = None
 
+
 def getMountType():
 	if SystemInfo["HasMultibootMTD"]:
 		return "-t ubifs"
+
 
 def getparam(line, param):
 	return line.replace("userdataroot", "rootuserdata").rsplit("%s=" % param, 1)[1].split(" ", 1)[0]

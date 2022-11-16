@@ -1003,6 +1003,7 @@ def createTimer(xml):
 
 	return entry
 
+
 class RecordTimer(Timer):
 	def __init__(self):
 		Timer.__init__(self)
