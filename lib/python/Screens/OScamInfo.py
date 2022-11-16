@@ -215,7 +215,7 @@ class OscamInfo:
 			return False, err
 		else:
 			if isinstance(data, bytes):
-				data = data.decode(encoding="UTF-8", errors="ignore")		
+				data = data.decode(encoding="UTF-8", errors="ignore")
 			return True, data
 
 	def readXML(self, typ):

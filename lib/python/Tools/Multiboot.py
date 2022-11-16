@@ -137,7 +137,7 @@ def GetImagelist():
 		imagedir = "/"
 		if SystemInfo["MultiBootSlot"] != slot or SystemInfo["HasHiSi"]:
 			if SystemInfo["HasMultibootMTD"]:
-				Console(binary=True).ePopen("mount -t ubifs %s %s" % (SystemInfo["canMultiBoot"][slot]["root"], tmpname))				
+				Console(binary=True).ePopen("mount -t ubifs %s %s" % (SystemInfo["canMultiBoot"][slot]["root"], tmpname))
 			else:
 				Console(binary=True).ePopen("mount %s %s" % (SystemInfo["canMultiBoot"][slot]["root"], tmpname))
 			imagedir = sep.join([_f for _f in [tmpname, SystemInfo["canMultiBoot"][slot].get("rootsubdir", "")] if _f])
@@ -182,7 +182,7 @@ def GetImagelist():
 			Imagelist[slot] = {"imagename": "%s" % BuildVersion}
 		elif path.isfile(path.join(imagedir, "usr/bin/enigmax")):
 			Imagelist[slot] = {"imagename": _("Deleted image")}
-		if SystemInfo["MultiBootSlot"] != slot:			
+		if SystemInfo["MultiBootSlot"] != slot:
 			Console(binary=True).ePopen("umount %s" % tmpname)
 	if not path.ismount(tmp.dir):
 		rmdir(tmp.dir)

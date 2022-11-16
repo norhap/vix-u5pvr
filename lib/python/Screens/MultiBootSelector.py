@@ -127,7 +127,7 @@ class MultiBootSelector(Screen, HelpableScreen):
 				copyfile(path.join(self.tmp_dir, SystemInfo["canMultiBoot"][slot]["startupfile"]), path.join(self.tmp_dir, "STARTUP"))
 			if SystemInfo["HasMultibootMTD"]:
 				with open('/dev/block/by-name/flag', 'wb') as f:
-					f.write(struct.pack("B", int(slot)))							
+					f.write(struct.pack("B", int(slot)))
 			self.cancel(QUIT_REBOOT)
 
 	def deleteImage(self):
