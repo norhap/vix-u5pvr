@@ -13,6 +13,7 @@ from Components.SystemInfo import SystemInfo, BoxInfo as BoxInfoRunningInstance,
 class tmp:
 	dir = None
 
+
 def getMultibootslots():
 	bootslots = {}
 	slotname = ""

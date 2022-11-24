@@ -3508,6 +3508,7 @@ class InfoBarVideoSetup:
 	def videoSetupDone(self, ret=None):
 		print("[InfoBarGenerics][videoSetupDone] %s" % ret)
 
+
 class InfoBarSubserviceSelection:
 	def __init__(self):
 		self["SubserviceSelectionAction"] = HelpableActionMap(self, "InfobarSubserviceSelectionActions",

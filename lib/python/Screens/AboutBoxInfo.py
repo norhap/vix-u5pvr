@@ -5,6 +5,7 @@ from Components.Sources.StaticText import StaticText
 from Components.SystemInfo import BoxInfo
 from Screens.Screen import Screen, ScreenSummary
 
+
 class AboutBoxInfo(Screen):
 	def __init__(self, session):
 		Screen.__init__(self, session)
