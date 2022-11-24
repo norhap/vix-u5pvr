@@ -49,4 +49,3 @@ class AboutBoxInfoSummary(ScreenSummary):
 		ScreenSummary.__init__(self, session, parent=parent)
 		self.skinName = "AboutSummary"
 		self["AboutText"] = StaticText(_("AboutBoxInfo"))
-		
