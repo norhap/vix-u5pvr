@@ -9,6 +9,7 @@ from Screens.Rc import Rc
 from enigma import eActionMap
 maxint = 2147483647 # sys.maxint does not exist in python 3
 
+
 class HelpMenu(Screen, Rc):
 	helpText = "\n\n".join([
 		_("Help Screen"),
