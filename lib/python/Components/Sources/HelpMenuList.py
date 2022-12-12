@@ -105,7 +105,7 @@ class HelpMenuList(List):
 					if name is not None:
 						if not (name and self.rcPos.getRcKeyPos(name[0])):
 							continue
-						if (len(name) < 2 or name[1] not in("fp", "kbd")):
+						if (len(name) < 2 or name[1] not in ("fp", "kbd")):
 							if flags & 8:  # for long keypresses, make the second tuple item "long".
 								name = (name[0], "long")
 							nlong = (n[0], flags & 8)
@@ -245,7 +245,7 @@ class HelpMenuList(List):
 
 	def handleButton(self, key, flag):
 		name = getKeyDescription(key)
-		if name is not None and (len(name) < 2 or name[1] not in("fp", "kbd")) and flag not in (2, 4):
+		if name is not None and (len(name) < 2 or name[1] not in ("fp", "kbd")) and flag not in (2, 4):
 			if flag == 0:
 				# Reset the long press flag on make
 				self.longSeen = False
