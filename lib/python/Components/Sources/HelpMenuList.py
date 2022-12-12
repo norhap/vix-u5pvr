@@ -177,7 +177,7 @@ class HelpMenuList(List):
 			"default+headings",
 			"extended",
 			"extended+headings",
-		)[formatFlags];
+		)[formatFlags]
 
 		self.list = l
 
