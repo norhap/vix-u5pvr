@@ -31,7 +31,7 @@ class AboutBase(TextBox):
 			self["lab3"] = StaticText(_("Support at") + " www.world-of-satellite.com")
 
 	def createSummary(self):
-		return AboutSummary	
+		return AboutSummary
 
 
 class About(AboutBase):
@@ -685,6 +685,3 @@ class TranslationInfo(Screen):
 
 		# TRANSLATORS: Add here whatever should be shown in the "translator" about screen, up to 6 lines (use \n for newline)
 		self["TranslationInfo"] = StaticText(_("TRANSLATOR_INFO") if "TRANSLATOR_INFO" != _("TRANSLATOR_INFO") else "")
-
-		
-
