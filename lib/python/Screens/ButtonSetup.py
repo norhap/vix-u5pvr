@@ -17,7 +17,7 @@ from Components.Label import Label
 
 from time import time
 
-ButtonSetupKeys = [	(_("Red"), "red", "Infobar/openSingleServiceEPG/1"),
+ButtonSetupKeys = [(_("Red"), "red", "Infobar/openSingleServiceEPG/1"),
 	(_("Red long"), "red_long", "Infobar/activateRedButton"),
 	(_("Green"), "green", ""),
 	(_("Green long"), "green_long", "Infobar/showAutoTimerList"),
