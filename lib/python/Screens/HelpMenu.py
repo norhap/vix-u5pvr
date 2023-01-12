@@ -1,4 +1,5 @@
 from Screens.Screen import Screen
+from Screens.TextBox import TextBox
 from Tools.KeyBindings import keyBindings
 from Tools.BoundFunction import boundFunction
 from Components.Label import Label
@@ -7,18 +8,18 @@ from Components.Sources.HelpMenuList import HelpMenuList
 from Components.Sources.StaticText import StaticText
 from Screens.Rc import Rc
 from enigma import eActionMap
-maxint = 2147483647 # sys.maxint does not exist in python 3
+from sys import maxsize
 
 
 class HelpMenu(Screen, Rc):
-	helpText = "\n\n".join([
-		_("Help Screen"),
-		_("Brief help information for buttons in your current context."),
-		_("Navigate up/down with UP/DOWN buttons and page up/down with LEFT/RIGHT. EXIT to return to the help screen. OK to perform the action described in the currently highlighted help."),
-		_("Other buttons will jump to the help for that button, if there is help."),
-		_("If an action is user-configurable, its help entry will be flagged (C)"),
-		_("A highlight on the remote control image shows which button the help refers to. If more than one button performs the indicated function, more than one highlight will be shown. Text below the list indicates whether the function is for a long press of the button(s)."),
-		_("The order and grouping of the help information list can be controlled using MENU>Setup>User Interface>Settings>Sort order for help screen.")])
+	def helpText(self):
+		return "\n\n".join([
+			_("Brief help information for buttons in your current context."),
+			_("Navigate up/down with UP/DOWN buttons and page up/down with LEFT/RIGHT. EXIT to return to the help screen. OK to perform the action described in the currently highlighted help."),
+			_("Other buttons will jump to the help for that button, if there is help."),
+			_("If an action is user-configurable, its help entry will be flagged (C)"),
+			_("A highlight on the remote control image shows which button the help refers to. If more than one button performs the indicated function, more than one highlight will be shown. Text below the list indicates whether the function is for a long press of the button(s)."),
+			_("The order and grouping of the help information list can be controlled using MENU>Setup>User Interface>Settings>Sort order for help screen.")])
 
 	def __init__(self, session, list):
 		Screen.__init__(self, session)
@@ -41,7 +42,7 @@ class HelpMenu(Screen, Rc):
 		# so that other wildcards can be interposed if needed.
 
 		self.onClose.append(self.doOnClose)
-		eActionMap.getInstance().bindAction('', maxint - 100, self["list"].handleButton)
+		eActionMap.getInstance().bindAction('', maxsize - 100, self["list"].handleButton)
 
 		# Ignore keypress breaks for the keys in the
 		# ListboxActions context.
@@ -88,19 +89,21 @@ class HelpMenu(Screen, Rc):
 		shiftButtons = []
 		if selection:
 			for button in selection[3]:
-				if len(button) > 1:
+				if len(button) > 1 and button[1] in ("SHIFT", "long"):
+					label = self.getRcPositions().getRcKeyLabel(button[0])
+					if label is None:
+						label = "Label not defined"
 					if button[1] == "SHIFT":
 						self.selectKey("SHIFT")
-						shiftButtons.append(button[0])
+						shiftButtons.append(label)
 					elif button[1] == "long":
 						longText[0] = _("Long key press")
-						longButtons.append(button[0])
+						longButtons.append(label)
 				self.selectKey(button[0])
 
 			textline = 0
 			if len(selection[3]) > 1:
 				if longButtons:
-					print("[HelpMenu] SelectionChanged", longButtons)
 					longText[textline] = _("Long press: ") + ', '.join(longButtons)
 					textline += 1
 				if shiftButtons:
@@ -134,9 +137,7 @@ class HelpMenu(Screen, Rc):
 		return 1
 
 	def showHelp(self):
-		# Import deferred so that MessageBox's import of HelpMenu doesn't cause an import loop
-		from Screens.MessageBox import MessageBox
-		self.session.open(MessageBox, _(HelpMenu.helpText), type=MessageBox.TYPE_INFO)
+		self.session.open(TextBox, self.helpText(), _("Help Screen"))
 
 
 class HelpableScreen:

@@ -15,7 +15,9 @@ from ServiceReference import ServiceReference
 from enigma import eServiceReference, eActionMap
 from Components.Label import Label
 
-ButtonSetupKeys = [(_("Red"), "red", "Infobar/openSingleServiceEPG/1"),
+from time import time
+
+ButtonSetupKeys = [	(_("Red"), "red", "Infobar/openSingleServiceEPG/1"),
 	(_("Red long"), "red_long", "Infobar/activateRedButton"),
 	(_("Green"), "green", ""),
 	(_("Green long"), "green_long", "Infobar/showAutoTimerList"),
@@ -108,7 +110,7 @@ def getButtonSetupFunctions():
 				twinPaths[plugin.path[plugin.path.rfind("Plugins"):]] = 1
 			ButtonSetupFunctions.append((plugin.name, plugin.path[plugin.path.rfind("Plugins"):] + "/" + str(twinPaths[plugin.path[plugin.path.rfind("Plugins"):]]), "EPG"))
 			twinPlugins.append(plugin.name)
-	pluginlist = plugins.getPlugins([PluginDescriptor.WHERE_PLUGINMENU, PluginDescriptor.WHERE_EXTENSIONSMENU, PluginDescriptor.WHERE_EVENTINFO])
+	pluginlist = plugins.getPlugins([PluginDescriptor.WHERE_PLUGINMENU, PluginDescriptor.WHERE_EXTENSIONSMENU, PluginDescriptor.WHERE_VIXMENU, PluginDescriptor.WHERE_EVENTINFO, PluginDescriptor.WHERE_BUTTONSETUP])
 	pluginlist.sort(key=lambda p: p.name)
 	for plugin in pluginlist:
 		if plugin.name not in twinPlugins and plugin.path:
@@ -439,6 +441,18 @@ class InfoBarButtonSetup():
 			dict((x[1], (self.ButtonSetupGlobal, boundFunction(self.getHelpText, x[1]))) for x in ButtonSetupKeys), -10)
 		self.longkeyPressed = False
 		self.onExecEnd.append(self.clearLongkeyPressed)
+		self.ButtonSetupFunctions = None
+		self.ButtonSetupFunctionsCheck = 0
+
+	def getButtonSetupFunctions(self):
+		# This is a min cache that persists for just 1 second.
+		# This saves getButtonSetupFunctions() being called multiple times when working from a loop.
+		t = time()
+		if (t - self.ButtonSetupFunctionsCheck) > 1 or not self.ButtonSetupFunctions:
+			self.ButtonSetupFunctions = getButtonSetupFunctions()
+			self.ButtonSetupFunctionsCheck = t
+		return self.ButtonSetupFunctions
+			
 
 	def clearLongkeyPressed(self):
 		self.longkeyPressed = False
@@ -454,7 +468,7 @@ class InfoBarButtonSetup():
 			elif x.startswith("Zap"):
 				selected.append(((_("Zap to") + " " + ServiceReference(eServiceReference(x.split("/", 1)[1]).toString()).getServiceName()), x))
 			elif x:
-				function = next((function for function in getButtonSetupFunctions() if function[1] == x), None)
+				function = next((function for function in self.getButtonSetupFunctions() if function[1] == x), None)
 				if function:
 					selected.append(function)
 		return selected
@@ -502,7 +516,7 @@ class InfoBarButtonSetup():
 							self.runPlugin(plugin)
 							return
 						twinPlugins.append(plugin.name)
-				pluginlist = plugins.getPlugins([PluginDescriptor.WHERE_PLUGINMENU, PluginDescriptor.WHERE_EXTENSIONSMENU])
+				pluginlist = plugins.getPlugins([PluginDescriptor.WHERE_PLUGINMENU, PluginDescriptor.WHERE_VIXMENU, PluginDescriptor.WHERE_EXTENSIONSMENU, PluginDescriptor.WHERE_BUTTONSETUP])
 				pluginlist.sort(key=lambda p: p.name)
 				for plugin in pluginlist:
 					if plugin.name not in twinPlugins and plugin.path:
