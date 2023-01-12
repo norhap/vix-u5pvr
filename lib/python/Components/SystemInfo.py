@@ -124,11 +124,13 @@ MACHINEBUILD = BoxInfo.getItem("machinebuild")
 def getBoxDisplayName():  # This function returns a tuple like ("BRANDNAME", "BOXNAME")
 	return (DISPLAYBRAND, DISPLAYMODEL)
 
+
 def getRCFile(ext):
 	filename = resolveFilename(SCOPE_SKIN, pathjoin("hardware", "%s.%s" % (BoxInfo.getItem("rcname"), ext)))
 	if not isfile(filename):
 		filename = resolveFilename(SCOPE_SKIN, pathjoin("hardware", "dmm1.%s" % ext))
 	return filename
+
 
 def setRCFile(source):
 	if source == "hardware":
