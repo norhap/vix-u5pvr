@@ -235,7 +235,7 @@ class OscamInfo:
 #			print("[OscamInfo][readXML] show typ, result 0,1", typ, "   ", result[0], "  ", result[1])
 			if not self.showLog:
 				dataXML = ElementTree.XML(result[1])
-				if typ=="version":
+				if typ == "version":
 					if "version" in dataXML.attrib:
 						self.version = dataXML.attrib["version"]
 					else:

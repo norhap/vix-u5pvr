@@ -392,7 +392,7 @@ class NameserverSetup(ConfigListScreen, HelpableScreen, Screen):
 		self.nameserverEntries = [NoSave(ConfigIP(default=nameserver)) for nameserver in self.nameservers]
 
 	def createSetup(self):
-		self["config"].list = [getConfigListEntry(_("Nameserver %d") % (i+1), x) for i, x in enumerate(self.nameserverEntries)]
+		self["config"].list = [getConfigListEntry(_("Nameserver %d") % (i + 1), x) for i, x in enumerate(self.nameserverEntries)]
 
 	def keySave(self):
 		iNetwork.clearNameservers()
@@ -513,7 +513,7 @@ class AdapterSetup(ConfigListScreen, HelpableScreen, Screen):
 			"blue": (self.KeyBlue, _("Open nameserver configuration")),
 			})
 
-		ConfigListScreen.__init__(self,  [], session=session, on_change=self.newConfig, fullUI=True)
+		ConfigListScreen.__init__(self, [], session=session, on_change=self.newConfig, fullUI=True)
 
 		self.createSetup()
 		self.onLayoutFinish.append(self.layoutFinished)

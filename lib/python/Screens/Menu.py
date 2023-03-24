@@ -41,7 +41,7 @@ def MenuEntryPixmap(entryID, png_cache, parentMenuEntryID):
 		pngPath = resolveFilename(SCOPE_GUISKIN, "menu/" + entryID + ".svg")
 		pos = config.skin.primary_skin.value.rfind('/')
 		if pos > -1:
-			current_skin = config.skin.primary_skin.value[:pos+1]
+			current_skin = config.skin.primary_skin.value[:pos + 1]
 		else:
 			current_skin = ""
 		if (current_skin in pngPath and current_skin) or not current_skin:
