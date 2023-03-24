@@ -120,7 +120,7 @@ def getMultibootslots():
 		else:
 			root = dict([(x.split("=", 1)[0].strip(), x.split("=", 1)[1].strip()) for x in bootArgs.strip().split(" ") if "=" in x])["root"]	# Broadband receiver (e.g. gbue4k) or sf8008 with sd card as root/kernel pair
 			for slot in bootslots.keys():
-				if "root" not in bootslots[slot].keys():			
+				if "root" not in bootslots[slot].keys():
 					continue
 				if bootslots[slot]["root"] == root:
 					SystemInfo["MultiBootSlot"] = slot
@@ -156,7 +156,7 @@ def GetImagelist(Recovery=None):
 				continue
 			else:					# called by MultiBootSelector
 				Imagelist[slot] = {"imagename": _("Recovery Mode")}
-				continue	
+				continue
 		print("[multiboot] [GetImagelist] slot = ", slot)
 		BuildVersion = "  "
 		Build = " "  # ViX Build No.
