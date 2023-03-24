@@ -13,6 +13,7 @@ from Tools.Directories import fileHas, fileExists
 MbootList1 = ("/dev/mmcblk0p1", "/dev/mmcblk1p1", "/dev/mmcblk0p3", "/dev/mmcblk0p4", "/dev/mtdblock2", "/dev/block/by-name/bootoptions")
 MbootList2 = ("/dev/%s" % getMachineMtdRoot(), )	# kexec kernel Vu+ multiboot
 
+
 class tmp:
 	dir = None
 
@@ -127,6 +128,7 @@ def getMultibootslots():
 					break
 	return bootslots
 
+
 def getUUIDtoSD(UUID): # returns None on failure
 #	print("[multiboot][getUUIDtoSD2] UUID = ", UUID)
 	check = "/sbin/blkid"
@@ -138,6 +140,7 @@ def getUUIDtoSD(UUID): # returns None on failure
 				return line.split(":")[0].strip()
 	else:
 		return None
+
 
 def GetCurrentImageMode():
 	return bool(SystemInfo["canMultiBoot"]) and SystemInfo["canMode12"] and int(open("/sys/firmware/devicetree/base/chosen/bootargs", "r").read().replace("\0", "").split("=")[-1])

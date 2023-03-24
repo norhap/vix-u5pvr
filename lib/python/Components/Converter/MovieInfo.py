@@ -8,8 +8,11 @@ from Components.Element import cached
 # Handle any invalid utf8 in a description to avoid crash when
 # displaying it.
 #
+
+
 def force_valid_utf8(strarray):
 	return strarray.encode(errors='backslashreplace').decode(errors='ignore')
+
 
 class MovieInfo(Converter):
 	scanDirectoryLock = Lock()
