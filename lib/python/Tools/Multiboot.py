@@ -263,6 +263,7 @@ def emptySlot(slot):
 		rmdir(tmp.dir)
 	return ret
 
+
 def bootmviSlot(imagedir="/", text=" ", slot=0):
 	inmviPath = path.join(imagedir, "usr/share/bootlogo.mvi")
 	outmviPath = path.join(imagedir, "usr/share/enigma2/bootlogo.mvi")
@@ -288,6 +289,7 @@ def bootmviSlot(imagedir="/", text=" ", slot=0):
 		print("[multiboot][bootmviSlot] Repack bootlogo")
 		Console(binary=True).ePopen("ffmpeg -i /tmp/out1.png -r 25 -b 20000 -y /tmp/mypicture.m1v  2>/dev/null")
 		Console(binary=True).ePopen("cp /tmp/mypicture.m1v %s" % outmviPath)
+
 
 def restoreSlots():
 	for slot in SystemInfo["canMultiBoot"]:
