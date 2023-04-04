@@ -24,7 +24,7 @@ config.plugins.opentvzapper.retrycount = NoSave(ConfigNumber(default=0))
 config.plugins.opentvzapper.nextscheduletime = ConfigNumber(default=0)
 config.plugins.opentvzapper.schedulewakefromdeep = ConfigYesNo(default=True)
 config.plugins.opentvzapper.scheduleshutdown = ConfigYesNo(default=True)
-config.plugins.opentvzapper.dayscreen = ConfigSelection(choices=[("1", _("Press OK"))], default="1")
+config.plugins.opentvzapper.dayscreen = NoSave(ConfigSelection(choices=[("1", _("Press OK"))], default="1"))
 config.plugins.opentvzapper.days = ConfigSubDict()
 for i in range(7):
 	config.plugins.opentvzapper.days[i] = ConfigEnableDisable(default=True)
@@ -71,7 +71,7 @@ class OpentvZapper_Setup(Setup):
 			if config.plugins.opentvzapper.schedule.value:
 				setupList.append((indent + _("Schedule time of day"), config.plugins.opentvzapper.scheduletime, _("Set the time of day to perform an EPG download.")))
 				setupList.append((indent + _("Schedule days of the week"), config.plugins.opentvzapper.dayscreen, _("Press OK to select which days to perform an EPG download.")))
-				setupList.append((indent + _("Schedule wake from deep standby"), config.plugins.opentvzapper.schedulewakefromdeep, _("Set the time of day to perform an EPG download.")))
+				setupList.append((indent + _("Schedule wake from deep standby"), config.plugins.opentvzapper.schedulewakefromdeep, _("Select 'yes' to wake up the receiver from deep standby, or select 'no' to skip the import.")))
 				if config.plugins.opentvzapper.schedulewakefromdeep.value:
 					setupList.append((indent + _("Schedule return to deep standby"), config.plugins.opentvzapper.scheduleshutdown, _("If the receiver was woken from 'Deep Standby' and is currently in 'Standby' and no recordings are in progress return it to 'Deep Standby' once the EPG download has completed.")))
 			else:
