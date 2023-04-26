@@ -129,7 +129,7 @@ class Language:
 		return True
 
 	def activateLanguage(self, index):
-		from Screens.MessageBox import MessageBox	
+		from Screens.MessageBox import MessageBox
 		from Tools import Notifications
 		if not self.activateLanguage_TRY(index):
 			print("[Language] - retry with ", "en_US")
