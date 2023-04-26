@@ -276,7 +276,7 @@ def bootmviSlot(imagedir="/", text=" ", slot=0):
 	if path.exists(inmviPath):
 		if path.exists(outmviPath) and path.exists(txtPath) and open(txtPath).read() == text:
 			return
-		print ("[multiboot][bootmviSlot] Copy /usr/share/bootlogo.mvi to /tmp/bootlogo.m1v")
+		print("[multiboot][bootmviSlot] Copy /usr/share/bootlogo.mvi to /tmp/bootlogo.m1v")
 		Console(binary=True).ePopen("cp %s /tmp/bootlogo.m1v" % inmviPath)
 		print("[multiboot][bootmviSlot] Dump iframe to png")
 		Console(binary=True).ePopen("ffmpeg -skip_frame nokey -i /tmp/bootlogo.m1v -vsync 0  -y  /tmp/out1.png 2>/dev/null")
