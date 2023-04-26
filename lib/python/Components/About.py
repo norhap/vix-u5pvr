@@ -16,7 +16,7 @@ def getFlashDateString():
 	if ospath.isfile('/etc/install'):
 		with open("/etc/install", "r") as f:
 			flashdate = f.read()
-			return flashdate[8:]  + flashdate[4:8] + flashdate[0:4]
+			return flashdate[8:] + flashdate[4:8] + flashdate[0:4]
 	else:
 		return _("unknown")
 
