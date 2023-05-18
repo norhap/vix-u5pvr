@@ -87,6 +87,7 @@ skinResolveList = []
 lcdskinResolveList = []
 fontsResolveList = []
 
+
 def clearResolveLists():
 	global skinResolveList, lcdskinResolveList, fontsResolveList
 	skinResolveList = []
