@@ -1,13 +1,13 @@
 from os import listdir, path, popen
 from re import search
-from enigma import eTimer, getEnigmaVersionString, getDesktop
+from enigma import eTimer, getDesktop
 from boxbranding import getMachineBrand, getMachineName, getImageVersion, getImageType, getImageBuild, getImageDevBuild
 from Components.About import about
 from Components.ActionMap import ActionMap
 from Components.Button import Button
 from Components.config import config
 from Components.Console import Console
-from Components.Harddisk import harddiskmanager
+from Components.Harddisk import harddiskmanager, bytesToHumanReadable
 from Components.Network import iNetwork
 from Components.NimManager import nimmanager
 from Components.Pixmap import MultiPixmap
@@ -44,11 +44,13 @@ class About(AboutBase):
 		self["key_green"] = Button(_("Translations"))
 		self["key_yellow"] = Button(_("Software update"))
 		self["key_blue"] = Button(_("Release notes"))
-		self["actions"] = ActionMap(["ColorActions"],
+		self["key_menu"] = StaticText(_("MENU"))
+		self["actions"] = ActionMap(["ColorActions", "MenuActions"],
 		{
 			"green": self.showTranslationInfo,
 			"yellow": self.showUpdatePlugin,
 			"blue": self.showAboutReleaseNotes,
+			"menu": self.setup,
 		})
 
 	def populate(self):
@@ -149,7 +151,7 @@ class About(AboutBase):
 		AboutText += _("Python:\t%s\n") % about.getPythonVersionString()
 		flashDate = about.getFlashDateString()
 		AboutText += _("Installed:\t%s\n") % flashDate
-		lastUpdate = getEnigmaVersionString()[8:] + getEnigmaVersionString()[4:8] + getEnigmaVersionString()[0:4]
+		lastUpdate = about.getLastUpdate()
 		AboutText += _("Last update:\t%s\n") % lastUpdate
 		AboutText += _("E2 (re)starts:\t%s\n") % config.misc.startCounter.value
 		uptime = about.getBoxUptime()
@@ -199,6 +201,10 @@ class About(AboutBase):
 
 	def showAboutReleaseNotes(self):
 		self.session.open(CommitInfo)
+
+	def setup(self):
+		from Screens.Setup import Setup
+		self.session.openWithCallback(self.populate, Setup, "about")
 
 
 class Devices(Screen):
@@ -288,12 +294,9 @@ class Devices(Screen):
 					hddp = hddp.replace("ATA", "")
 					hddp = hddp.replace("Internal", "ATA Bus ")
 				free = hdd.Totalfree()
-				if (free / 1000 / 1000) >= 1:
-					freeline = _("Free: ") + str(round((free / 1000 / 1000), 2)) + _("TB")
-				elif (free / 1000) >= 1:
-					freeline = _("Free: ") + str(round((free / 1000), 2)) + _("GB")
-				elif free >= 1:
-					freeline = _("Free: ") + str(round(free, 2)) + _("MB")
+				if free >= 1:
+					free *= 1000000 # convert MB to bytes
+					freeline = _("Free: ") + bytesToHumanReadable(free)
 				elif "Generic(STORAGE" in hddp:				# This is the SDA boot volume for SF8008 if "full" #
 					continue
 				else:
@@ -626,7 +629,7 @@ class AboutSummary(ScreenSummary):
 		self["AboutText"] = StaticText()
 		self.aboutText.append(_("OpenViX: %s") % getImageVersion() + "." + getImageBuild() + "\n")
 		self.aboutText.append(_("Model: %s %s\n") % (getMachineBrand(), getMachineName()))
-		self.aboutText.append(_("Updated: %s") % getEnigmaVersionString() + "\n")
+		self.aboutText.append(_("Updated: %s") % about.getLastUpdate() + "\n")
 		tempinfo = ""
 		if path.exists("/proc/stb/sensors/temp0/value"):
 			with open("/proc/stb/sensors/temp0/value", "r") as f:

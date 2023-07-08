@@ -278,6 +278,8 @@ def InitUsageConfig():
 
 	config.usage.check_timeshift = ConfigYesNo(default=True)
 
+	config.usage.bootlogo_identify = ConfigYesNo(default=True)
+
 	config.usage.alternatives_priority = ConfigSelection(default="0", choices=[
 		("0", "DVB-S/-C/-T"),
 		("1", "DVB-S/-T/-C"),
@@ -423,6 +425,7 @@ def InitUsageConfig():
 	config.usage.date = ConfigSubsection()
 	config.usage.date.enabled = NoSave(ConfigBoolean(default=False))
 	config.usage.date.enabled_display = NoSave(ConfigBoolean(default=False))
+	config.usage.date.dateFormatAbout = ConfigSelection(default="%(day)s-%(month)s-%(year)s", choices=[("%(day)s-%(month)s-%(year)s", _("DD-MM-YYYY")), ("%(month)s-%(day)s-%(year)s", _("MM-DD-YYYY")), ("%(year)s-%(month)s-%(day)s", _("YYYY-MM-DD"))])
 	config.usage.time = ConfigSubsection()
 	config.usage.time.enabled = NoSave(ConfigBoolean(default=False))
 	config.usage.time.disabled = NoSave(ConfigBoolean(default=True))
@@ -944,6 +947,7 @@ def InitUsageConfig():
 		if not os.path.exists(config.crash.debug_path.value):
 			os.mkdir(config.crash.debug_path.value, 0o755)
 	config.crash.debug_path.addNotifier(updatedebug_path, immediate_feedback=False)
+	config.crash.coredump = ConfigYesNo(default=False)
 
 	config.usage.timerlist_showpicons = ConfigYesNo(default=True)
 	config.usage.timerlist_finished_timer_position = ConfigSelection(default="end", choices=[("beginning", _("at beginning")), ("end", _("at end")), ("hide", _("hide"))])
