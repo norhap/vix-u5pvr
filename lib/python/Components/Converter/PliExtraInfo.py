@@ -32,14 +32,14 @@ caid_data = (
 # stream type to codec map
 codec_data = {
 	-1: "N/A",
-	0: "MPEG2",
-	1: "AVC",
+	0: "MPEG2 H.262",
+	1: "MPEG4 H.264",
 	2: "H263",
 	3: "VC1",
-	4: "MPEG4-VC",
-	5: "VC1-SM",
-	6: "MPEG1",
-	7: "HEVC",
+	4: "MPEG4 VC",
+	5: "VC1 SM",
+	6: "MPEG1 H.261",
+	7: "HEVC H.265",
 	8: "VP8",
 	9: "VP9",
 	10: "XVID",
@@ -337,8 +337,11 @@ class PliExtraInfo(Poll, Converter, object):
 		return res
 
 	def createCryptoSpecial(self, info):
-		caid_name = "FTA"
-		if int(self.current_caid, 16) == 0:
+		refstr = info.getInfoString(iServiceInformation.sServiceref)
+		caid_name = "Free to Air"
+		if "%3a//" in refstr.lower() and not "127.0.0.1" in refstr and not "0.0.0.0" in refstr and not "localhost" in refstr or "@" in refstr:
+			return "IPTV" + ":%06X:%04X" % (int(self.current_provid, 16), info.getInfo(iServiceInformation.sSID))
+		elif int(self.current_caid, 16) == 0:
 			return caid_name + ":%06X:%04X" % (int(self.current_provid, 16), info.getInfo(iServiceInformation.sSID))
 		try:
 			for caid_entry in caid_data:

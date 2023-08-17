@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: enigma2\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2022-12-27 23:35+0000\n"
-"PO-Revision-Date: 2023-07-05 17:31+0300\n"
+"PO-Revision-Date: 2023-08-10 17:45+0300\n"
 "Last-Translator: Orlandox\n"
 "Language-Team: timoj/Kojo/Samzam/Orlandox\n"
 "Language: fi\n"
@@ -13,7 +13,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
-"X-Generator: Poedit 3.2.2\n"
+"X-Generator: Poedit 3.3.2\n"
 
 #, python-format
 msgid ""
@@ -2080,7 +2080,7 @@ msgid "Allow reinitialisation of selected cam script."
 msgstr "Salli valitun cam skriptin uudelleen alustus."
 
 msgid "Allow subtitle language to equal audio language"
-msgstr "Salli tekstityskielen vastata äänivalintaa"
+msgstr "Salli tekstityskielen olla sama kuin äänen kieli"
 
 msgid "Allow subtitles for hearing impaired"
 msgstr "Salli kuulovammaisten tekstitys"
@@ -6906,6 +6906,9 @@ msgid "IMDB search for current event"
 msgstr "Nykyisen ohjelman IMDb-haku"
 
 msgid "IMDb Search"
+msgstr "IMDb-haku"
+
+msgid "IMDb search"
 msgstr "IMDb-haku"
 
 msgid "INFO"
@@ -13532,7 +13535,7 @@ msgstr ""
 "Suomenkielinen käännös: timoj, Kojo, Samzam, Orlandox\n"
 "\n"
 "Ylläpito : Orlandox\n"
-"05.07.2023\n"
+"10.08.2023\n"
 "http://www.huoltovalikko.com"
 
 msgid "TS file is too large for ISO9660 level 1!"
@@ -14133,6 +14136,9 @@ msgstr "Tämä poistaa pysyvästi nykyiset määritykset. Kannattaa ensiksi tehd
 
 msgid "This will permanently delete the current configuration. It would be a good idea to make a backup before taking this drastic action. Are you certain you want to continue with a factory reset?"
 msgstr "Tämä poistaa pysyvästi nykyiset määritykset. Kannattaa ensiksi tehdä varmuuskopio. Haluatko varmasti palauttaa tehdasasetukset?"
+
+msgid "This will permanently delete the current configuration. Although settings backup requested, there is No backup device attached, are you certain you want to continue with a factory reset?"
+msgstr "Tämä poistaa pysyvästi nykyiset määritykset. Vaikka asetusten varmuuskopiointia pyydettiin, varmuuskopiointilaitetta ei ole liitetty, haluatko varmasti palauttaa tehdasasetukset?"
 
 msgid "Three"
 msgstr "Kolme"
@@ -15496,8 +15502,8 @@ msgstr "Kun päällä, tallennus saa keskeyttää TV:n katselun, jos vapaita vir
 msgid "When enabled, a warning will be displayed and the user will get an option to stop or to continue the timeshift."
 msgstr "Kun päällä, näytetään varoitus ja käyttäjällä on mahdollisuus pysäyttää tai jatkaa ajansiirtoa."
 
-msgid "When enabled, always descramble receiving http streams. This takes up more resources (descrambling demuxers), only enable if necessary. Individual streams are always descrambled if 0x100 is added to the service type, regardless of this setting. Default off."
-msgstr "Kun valittu, pura vastaanotettavat http-streamit. Tämä vaatii enemmän resursseja. Käytä vain jos todella tarvitset. Yksittäiset streamit puretaan aina jos 0x100 on lisätty kanavatietoihin riippumatta tästä asetuksesta. Oletus: Ei."
+msgid "When enabled, always descramble receiving http streams. This takes up more resources (descrambling demuxers), only enable if necessary. Individual streams are always descrambled if 0x100 is added to the service type, regardless of this setting."
+msgstr "Kun valittu, pura vastaanotettavat http-streamit. Tämä vaatii enemmän resursseja. Käytä vain jos todella tarvitset. Yksittäiset streamit puretaan aina jos 0x100 on lisätty kanavatietoihin riippumatta tästä asetuksesta."
 
 msgid "When enabled, authentication is required to watch http streams."
 msgstr "Kun valittuna, hyväksyntä vaaditaan katsottaessa http-palveluita."
@@ -15526,8 +15532,8 @@ msgstr "Kun päällä, DVB-tekstitys näytetään alkuperäisellä paikallaan."
 msgid "When enabled, graphical DVB subtitles will be displayed in yellow, instead of the original color."
 msgstr "Kun päällä, DVB-tekstitys näytetään keltaisena alkuperäisen värin sijaan."
 
-msgid "When enabled, http streams are descrambled on the server side. The (remote) client receiver does not have to do descrambling. Default on."
-msgstr "Kun valittuna, http-streamit puretaan lähetys päässä. Asiakas etävastaanotimessa ei ole purkua. Oletus: Kyllä."
+msgid "When enabled, http streams are descrambled on the server side. The (remote) client receiver does not have to do descrambling."
+msgstr "Kun valittuna, http-streamit puretaan lähetys päässä. Asiakas etävastaanotimessa ei ole purkua."
 
 msgid "When enabled, it is possible to leave the Movie Player with exit."
 msgstr "Kun päällä, on mahdollista poistua tallenteiden katselusta exit-napilla."
@@ -16972,6 +16978,9 @@ msgstr "Ei mitään"
 msgid "normal"
 msgstr "Normaali"
 
+msgid "Normal"
+msgstr "Normaali"
+
 msgid "not configured"
 msgstr "Ei määritetty"
 
@@ -18107,3 +18116,34 @@ msgstr "Käynnistyslogon tunnistus"
 
 msgid "Identify image version on bootlogo.mvi."
 msgstr "Tunnista imagen versio bootlogo.mvi:ssa."
+
+msgid "TMDb Search"
+msgstr "TMDb-haku"
+
+msgid "TMDb search"
+msgstr "TMDb-haku"
+
+msgid "TMDB search for current event"
+msgstr "Nykyisen ohjelman TMDb-haku"
+
+msgid ""
+"The TMDb plugin is not installed!\n"
+"Please install it."
+msgstr ""
+"TMDb-lisäosaa ei ole asennettu!\n"
+"Asenna se."
+
+msgid "TMDb search for highlighted event"
+msgstr "TMDb-haku korostetusta ohjelmasta"
+
+msgid "IMDb search for highlighted event"
+msgstr "IMDb-haku korostetusta ohjelmasta"
+
+msgid "High"
+msgstr "Korkea"
+
+msgid "HI cleanup for external subtitles"
+msgstr "Kuulovammaisille tarkoitetun tekstityksen puhdistus ulkoisista tekstityksistä"
+
+msgid "Remove text for the hearing impaired from external subtitles (instrumental music or environmental sounds, e.g., when a doorbell rings or a gun shot is heard)."
+msgstr "Poista kuulovammaisille tarkoitettu teksti ulkoisista tekstityksistä (instrumentaalimusiikki tai ympäristöäänet, esim. kun ovikello soi tai kuuluu laukaus)."
