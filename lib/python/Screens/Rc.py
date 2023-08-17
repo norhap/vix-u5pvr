@@ -149,7 +149,7 @@ class RcPositions:
 	def __init__(self):
 		if RcPositions.rc is not None:
 			return
-		descriptions = [{v[0]:k for k, v in x.items()} for x in keyDescriptions] # used by wizards and legacy xml format
+		descriptions = [{v[0]: k for k, v in x.items()} for x in keyDescriptions] # used by wizards and legacy xml format
 		file = resolveFilename(SCOPE_SKIN, "rcpositions.xml") if SystemInfo["rc_default"] else SystemInfo["RCMapping"]
 		rcs = fileReadXML(file, "<rcs />")
 		remotes = {}
