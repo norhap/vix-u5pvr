@@ -25,6 +25,8 @@ config.plugins.fccsetup.priority = ConfigSelection(default="zapupdown", choices=
 config.plugins.fccsetup.disableforrec = ConfigYesNo(default=True)
 
 FccInstance = None
+
+
 def FCCChanged():
 	if FccInstance:
 		FccInstance.FCCSetupChanged()
@@ -542,11 +544,15 @@ def showFCCExtentionMenu():
 		currentScreenName = FccInstance.session.current_dialog.__class__.__name__
 	return (currentScreenName == "InfoBar")
 
+
 def addExtentions(infobarExtensions):
 	infobarExtensions.addExtension((getExtensionName, ToggleUpdate, showFCCExtentionMenu), None)
 
+
 def FCCStart(session, **kwargs):
 	session.open(FCCSetup)
+
+
 def main(menuid, **kwargs):
 	if menuid == "scan":
 		return [(_("Fast Channel Change"), FCCStart, "FCCSetup", 5)]
