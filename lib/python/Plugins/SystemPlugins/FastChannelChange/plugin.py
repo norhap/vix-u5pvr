@@ -18,7 +18,7 @@ g_default_fcc = (g_max_fcc) > 5 and 5 or g_max_fcc
 
 config.plugins.fccsetup = ConfigSubsection()
 config.plugins.fccsetup.activate = ConfigYesNo(default=False)
-config.plugins.fccsetup.maxfcc = ConfigSelection(default=str(g_default_fcc), choices=list((str(n), str(n)) for n in range(2, g_max_fcc+1)))
+config.plugins.fccsetup.maxfcc = ConfigSelection(default=str(g_default_fcc), choices=list((str(n), str(n)) for n in range(2, g_max_fcc + 1)))
 config.plugins.fccsetup.zapupdown = ConfigYesNo(default=True)
 config.plugins.fccsetup.history = ConfigYesNo(default=False)
 config.plugins.fccsetup.priority = ConfigSelection(default="zapupdown", choices={"zapupdown": _("Zap Up/Down"), "historynextback": _("History Prev/Next")})
@@ -243,10 +243,10 @@ class FCCSupport:
 		if sref.type != 1:
 			playable = False
 
-		elif sref.getPath(): # is PVR? or streaming?
+		elif sref.getPath():  # is PVR? or streaming?
 			playable = False
 
-		elif int(sref.getData(0)) in (2, 10): # is RADIO?
+		elif int(sref.getData(0)) in (2, 10):  # is RADIO?
 			playable = False
 
 		return playable
@@ -259,21 +259,21 @@ class FCCSupport:
 		serviceRefList = []
 		for idx in range(len(serviceList)):
 			sref = serviceList[idx].toString()
-			if (sref.split(':')[1] == '0') and self.isPlayableFCC(sref): # remove marker
+			if (sref.split(':')[1] == '0') and self.isPlayableFCC(sref):  # remove marker
 				serviceRefList.append(sref)
 
 		if curServiceRef in serviceRefList:
 			serviceRefListSize = len(serviceRefList)
 			curServiceIndex = serviceRefList.index(curServiceRef)
 
-			for x in range(self.maxFCC-1):
-				if x > (serviceRefListSize-2): # if not ((x+1) <= (serviceRefListSize-1))
+			for x in range(self.maxFCC - 1):
+				if x > (serviceRefListSize - 2):  # if not ((x+1) <= (serviceRefListSize-1))
 					break
 
 				idx = (x // 2) + 1
 				if x % 2:
-					idx *= -1 # idx : [ 1, -1, 2, -2, 3, -3, 4, -4 ....]
-				idx = (curServiceIndex+idx) % serviceRefListSize # calc wraparound
+					idx *= -1  # idx : [ 1, -1, 2, -2, 3, -3, 4, -4 ....]
+				idx = (curServiceIndex + idx) % serviceRefListSize  # calc wraparound
 				try:
 					fccZapUpDownList.append(serviceRefList[idx])
 				except:
@@ -289,12 +289,12 @@ class FCCSupport:
 		history_len = len(history)
 
 		if history_len > 1 and history_pos > 0:
-			historyPrev = history[history_pos-1][:][-1].toString()
+			historyPrev = history[history_pos - 1][:][-1].toString()
 			if self.isPlayableFCC(historyPrev):
 				historyList.append(historyPrev)
 
-		if history_len > 1 and history_pos < (history_len-1):
-			historyNext = history[history_pos+1][:][-1].toString()
+		if history_len > 1 and history_pos < (history_len - 1):
+			historyNext = history[history_pos + 1][:][-1].toString()
 			if self.isPlayableFCC(historyNext):
 				historyList.append(historyNext)
 
@@ -331,7 +331,7 @@ class FCCSupport:
 			self.FCCReconfigureFccList()
 
 	def addFCCList(self, newlist):
-		fccListMaxLen = self.maxFCC-1
+		fccListMaxLen = self.maxFCC - 1
 		for sref in newlist:
 			if len(self.fccList) >= fccListMaxLen:
 				break
@@ -346,13 +346,13 @@ class FCCSupport:
 		for (sref, value) in currentFCCList.items():
 			state = value[0]
 
-			if state == 2: # fcc_state_failed
+			if state == 2:  # fcc_state_failed
 				stopFCCList.append(sref)
 
-			elif sref in self.fccList: # check conflict FCC channel (decoder/prepare)
+			elif sref in self.fccList:  # check conflict FCC channel (decoder/prepare)
 				self.fccList.remove(sref)
 
-			elif state == 0: # fcc_state_preparing
+			elif state == 0:  # fcc_state_preparing
 				stopFCCList.append(sref)
 
 		for sref in stopFCCList:
@@ -395,11 +395,11 @@ class FCCSupport:
 			self.FCCTimeoutTimerStop()
 
 			if event in (iPlayableService.evTuneFailed, iPlayableService.evFccFailed):
-				self.fccmgr.stopFCCService() # stop FCC Services in failed state
+				self.fccmgr.stopFCCService()  # stop FCC Services in failed state
 
 			if not self.FCCCheckAndTimerStart() and len(self.fccList):
 				sref = self.fccList.pop(0)
-				if self.isPlayableFCC(sref): # remove PVR, streaming, radio channels
+				if self.isPlayableFCC(sref):  # remove PVR, streaming, radio channels
 					self.fccmgr.playFCCService(eServiceReference(sref))
 					self.FCCTimeoutTimerStart(sref)
 
@@ -408,7 +408,7 @@ class FCCSupport:
 		fccServiceList = self.fccmgr.getFCCServiceList()
 		for (sref, value) in fccServiceList.items():
 			state = value[0]
-			if state != 1: # 1  : fcc_state_decoding
+			if state != 1:  # 1  : fcc_state_decoding
 				self.fccmgr.stopFCCService(eServiceReference(sref))
 
 	def FCCDisableServices(self):
@@ -425,7 +425,7 @@ class FCCSupport:
 		for (sref, value) in self.fccmgr.getFCCServiceList().items():
 			state = value[0]
 			locked = value[1]
-			if state != 1 and locked == 0: # no fcc decoding and no locked
+			if state != 1 and locked == 0:  # no fcc decoding and no locked
 				return sref
 		return None
 

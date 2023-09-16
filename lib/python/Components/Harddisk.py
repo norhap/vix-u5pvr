@@ -227,8 +227,8 @@ class Harddisk:
 		return cap
 
 	def capacity(self):
-		cap = self.diskSize() # cap is in MB
-		cap *= 1000000 # convert to MB to bytes
+		cap = self.diskSize()  # cap is in MB
+		cap *= 1000000  # convert to MB to bytes
 		return bytesToHumanReadable(cap)
 
 	def model(self):
@@ -539,7 +539,7 @@ class Harddisk:
 				match = bus
 				break
 
-		if SystemInfo["HasHiSi"] and match == bus and "usb1/1-1/1-1.1/1-1.1:1.0" in self.phys_path:
+		if SystemInfo["HasHiSi"] and match == bus and ("usb1/1-1/1-1.1/1-1.1:1.0" in self.phys_path or "usb1/1-1/1-1.4/1-1.4:1.0" in self.phys_path):
 			match = None
 
 		if match:
