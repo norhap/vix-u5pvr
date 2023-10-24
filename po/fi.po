@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: enigma2\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2022-12-27 23:35+0000\n"
-"PO-Revision-Date: 2023-10-01 09:51+0300\n"
+"PO-Revision-Date: 2023-10-20 19:33+0300\n"
 "Last-Translator: Orlandox\n"
 "Language-Team: timoj/Kojo/Samzam/Orlandox\n"
 "Language: fi\n"
@@ -3914,6 +3914,9 @@ msgstr "Yhdistä WLAN-verkkoon"
 msgid "Connected"
 msgstr "Yhdistetty:"
 
+msgid "Connected through another tuner"
+msgstr "Yhdistetty toisen virittimen kautta"
+
 msgid "Connected clients"
 msgstr "Kytkeytyneet asiakkaat"
 
@@ -4810,15 +4813,15 @@ msgstr "Hakemisto"
 
 #, python-format
 msgid "Directory %s does not exist."
-msgstr "Hakemistoa %s ei löydy."
+msgstr "Hakemistoa %s ei ole olemassa."
 
 #, python-format
 msgid "Directory '%s' does not exist."
-msgstr "Hakemistoa '%s' ei löydy."
+msgstr "Hakemistoa '%s' ei ole olemassa."
 
 #, python-format
 msgid "Directory '%s' is not hard links capable."
-msgstr "Hakemistoon '%s' ei voi kirjoittaa."
+msgstr "Hakemisto '%s' ei ole kova-linkkeihin kykenevä."
 
 #, python-format
 msgid "Directory '%s' not valid. Partition must be ext or nfs."
@@ -10877,7 +10880,7 @@ msgid "Reserved for future use"
 msgstr "Varattu tulevaa käyttöä varten"
 
 msgid "Reset"
-msgstr "Käynnistä CA-moduuli uudelleen"
+msgstr "Nollaa"
 
 msgid "Reset and renumerate title names"
 msgstr "Nollaa ja uudelleenjärjestä otsikot"
@@ -13537,7 +13540,7 @@ msgstr ""
 "Suomenkielinen käännös: timoj, Kojo, Samzam, Orlandox\n"
 "\n"
 "Ylläpito : Orlandox\n"
-"01.10.2023\n"
+"20.10.2023\n"
 "http://www.huoltovalikko.com"
 
 msgid "TS file is too large for ISO9660 level 1!"
@@ -18665,8 +18668,8 @@ msgstr "OK, suorita palautus"
 msgid "Partition: %s  Mount: %s unmounted successfully; if all partitions now unmounted you can remove device."
 msgstr "Partitio: %s Liitos: %s liitos poistettu onnistuneesti; jos kaikkien partitioiden liitokset poistettu, voit poistaa laitteen."
 
-msgid "Please enter a folder that contains some packages."
-msgstr "Valitse hakemisto joka sisältää asennuspaketteja."
+msgid "Please select folder that contains .ipk packages."
+msgstr "Valitse hakemisto, joka sisältää .ipk-paketteja."
 
 msgid "Please select device to use as SWAP file location."
 msgstr "Valitse laite, jota käytetään SWAP-tiedoston tallentamiseen."
@@ -18808,8 +18811,8 @@ msgstr "Valitse flashattava image."
 msgid "Select extra packages folder"
 msgstr "Valitse lisäohjelmapakettien hakemisto"
 
-msgid "Select folder that contains plugins"
-msgstr "Valitse hakemisto joka sisältää lisäosat"
+msgid "Select folder containing plugins(.ipk) and Save"
+msgstr "Valitse lisäosia (.ipk) sisältävä hakemisto ja Tallenna"
 
 msgid "Select the SWAP file size:"
 msgstr "Valitse SWAP:n koko:"
@@ -19080,3 +19083,24 @@ msgstr "Asetusten varmuuskopiointi ennen päivitystä on erittäin suositeltavaa
 
 msgid "Please select a valid directory."
 msgstr "Valitse kelvollinen hakemisto."
+
+msgid "Play service without streamrelay"
+msgstr "Toista kanava ilman striimin välitystä"
+
+msgid "Play service with streamrelay"
+msgstr "Toista kanava striimin välityksellä"
+
+msgid "Stream relay"
+msgstr "Striimin välitys"
+
+msgid "Streamrelay url"
+msgstr "Striimin välitys -url"
+
+msgid "The IP address of the streamrelay server that is used to descramble services that can only be decrypted via streamrelay"
+msgstr "Striimin välitys -palvelimen IP-osoite, jota käytetään sellaisten palvelujen salauksen purkamiseen, joiden salaus voidaan purkaa vain striimin välityksen kautta"
+
+msgid "Streamrelay port"
+msgstr "Striimin välitys -portti"
+
+msgid "The port of the streamrelay server that is used to descramble services that can only be decrypted via streamrelay"
+msgstr "Striimin välitys -palvelimen portti, jota käytetään sellaisten palvelujen salauksen purkamiseen, joiden salaus voidaan purkaa vain striimin välityksen kautta"

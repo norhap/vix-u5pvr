@@ -1,6 +1,6 @@
 from Components.config import config, ConfigBoolean, configfile
 from Components.Pixmap import Pixmap
-from Screens.LanguageSelection import LanguageWizard
+from Screens.LanguageSelection import LanguageWizard  # noqa: F401
 from Screens.Rc import Rc
 from Screens.WizardLanguage import WizardLanguage
 from Screens.WizardUserInterfacePositioner import UserInterfacePositionerWizard
@@ -29,11 +29,7 @@ class StartWizard(WizardLanguage, Rc):
 		self["wizard"] = Pixmap()
 
 	def markDone(self):
-		# setup remote control, all stb have same settings except dm8000 which uses a different settings
-		if getBoxType() == 'dm8000':
-			config.misc.rcused.value = 0
-		else:
-			config.misc.rcused.value = 1
+		config.misc.rcused.value = 1  # setup remote control, all stb have same settings
 		config.misc.rcused.save()
 
 		config.misc.firstrun.value = 0
@@ -41,7 +37,7 @@ class StartWizard(WizardLanguage, Rc):
 		configfile.save()
 
 
-#wizardManager.registerWizard(VideoWizard, config.misc.Vuwizardenabled.value, priority=2)
+# wizardManager.registerWizard(VideoWizard, config.misc.Vuwizardenabled.value, priority=2)
 wizardManager.registerWizard(VuWizard, config.misc.Vuwizardenabled.value, priority=3)
 wizardManager.registerWizard(VideoWizard, config.misc.videowizardenabled.value, priority=10)
 wizardManager.registerWizard(UserInterfacePositionerWizard, config.misc.firstrun.value, priority=20)
