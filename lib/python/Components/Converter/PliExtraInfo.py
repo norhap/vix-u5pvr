@@ -8,24 +8,25 @@ from Tools.Transponder import ConvertToHumanReadable
 from Tools.GetEcmInfo import GetEcmInfo
 from Tools.Hex2strColor import Hex2strColor
 from Components.Converter.Poll import Poll
+from Tools.Directories import pathExists
 from skin import parameters
 
 caid_data = (
-	("0x100", "0x1ff", "Seca", "S", True),
-	("0x500", "0x5ff", "Via", "V", True),
-	("0x600", "0x6ff", "Irdeto", "I", True),
-	("0x900", "0x9ff", "NDS", "Nd", True),
-	("0xb00", "0xbff", "Conax", "Co", True),
-	("0xd00", "0xdff", "CryptoW", "Cw", True),
-	("0xe00", "0xeff", "PowerVU", "P", False),
-	("0x1000", "0x10FF", "Tandberg", "TB", False),
-	("0x1700", "0x17ff", "Beta", "B", True),
-	("0x1800", "0x18ff", "Nagra", "N", True),
-	("0x2600", "0x2600", "Biss", "Bi", False),
-	("0x2700", "0x2710", "Dre3", "D3", False),
-	("0x4ae0", "0x4ae1", "Dre", "D", False),
-	("0x4aee", "0x4aee", "BulCrypt", "B1", False),
-	("0x5581", "0x5581", "BulCrypt", "B2", False)
+	("0x100", "0x1ff", "Seca", "S", "SECA", True),
+	("0x500", "0x5ff", "Via", "V", "VIA", True),
+	("0x600", "0x6ff", "Irdeto", "I", "IRD", True),
+	("0x900", "0x9ff", "NDS", "Nd", "NDS", True),
+	("0xb00", "0xbff", "Conax", "Co", "CONAX", True),
+	("0xd00", "0xdff", "CryptoW", "Cw", "CRW", True),
+	("0xe00", "0xeff", "PowerVU", "P", "PV", False),
+	("0x1000", "0x10FF", "Tandberg", "TB", "TAND", False),
+	("0x1700", "0x17ff", "Beta", "B", "BETA", True),
+	("0x1800", "0x18ff", "Nagra", "N", "NAGRA", True),
+	("0x2600", "0x2600", "Biss", "Bi", "BiSS", False),
+	("0x2700", "0x2710", "Dre3", "D3", "DRE3", False),
+	("0x4ae0", "0x4ae1", "Dre", "D", "DRE", False),
+	("0x4aee", "0x4aee", "BulCrypt", "B1", "BUL", False),
+	("0x5581", "0x5581", "BulCrypt", "B2", "BUL", False)
 )
 
 # stream type to codec map
@@ -110,7 +111,7 @@ class PliExtraInfo(Poll, Converter, object):
 			"ServiceInfo": (
 				"ProviderName",
 				"TunerSystem",
-				"TransponderFrequency",
+				"TransponderFrequencyMHz",
 				"TransponderPolarization",
 				"TransponderSymbolRate",
 				"TransponderFEC",
@@ -222,12 +223,22 @@ class PliExtraInfo(Poll, Converter, object):
 				except:
 					pass
 
-			if color != Hex2strColor(colors[2]) or caid_entry[4]:
+			if color != Hex2strColor(colors[2]) or caid_entry[5]:
 				if res:
 					res += " "
 				res += color + caid_entry[3]
 
 		res += Hex2strColor(colors[3])  # white (this acts like a color "reset" for following strings
+		return res
+
+	def createCurrentCaidLabel(self):
+		res = ""
+		if not pathExists("/tmp/ecm.info"):
+			return "FTA"
+		for caid_entry in caid_data:
+			if int(caid_entry[0], 16) <= int(self.current_caid, 16) <= int(caid_entry[1], 16):
+				res = caid_entry[4]
+
 		return res
 
 	def createCryptoSeca(self, info):
@@ -506,18 +517,49 @@ class PliExtraInfo(Poll, Converter, object):
 			onid = 0
 		return "%d-%d:%05d:%04d:%04d:%04d" % (onid, tsid, sidpid, vpid, apid, pcrpid)
 
-	def createTransponderInfo(self, fedata, feraw, info):
-		if not feraw:
-			refstr = info.getInfoString(iServiceInformation.sServiceref)
-			if "%3a//" in refstr.lower():
-				return refstr.split(":")[10].replace("%3a", ":").replace("%3A", ":")
-			return ""
-		elif "DVB-T" in feraw.get("tuner_type"):
-			tmp = addspace(self.createChannelNumber(fedata, feraw)) + addspace(self.createFrequency(fedata)) + addspace(self.createPolarization(fedata))
-		else:
-			tmp = addspace(self.createFrequency(fedata)) + addspace(self.createPolarization(fedata))
-		return addspace(self.createTunerSystem(fedata)) + tmp + addspace(self.createSymbolRate(fedata, feraw)) + addspace(self.createFEC(fedata, feraw)) \
-			+ addspace(self.createModulation(fedata)) + addspace(self.createOrbPos(feraw)) + addspace(self.createMisPls(fedata))
+	def createInfoString(self, fieldGroup, fedata, feraw, info):
+		if fieldGroup in self.recursionCheck:
+			return _("?%s-recursive?") % fieldGroup
+		self.recursionCheck.add(fieldGroup)
+
+		fields = self.info_fields[fieldGroup]
+		if fields and isinstance(fields[0], (tuple, list)):
+			if fieldGroup == "TransponderInfo":
+				fields = fields[feraw and int("DVB-T" in feraw.get("tuner_type", "")) + 1 or 0]
+			else:
+				fields = fields[int(config.usage.show_cryptoinfo.value) > 0]
+
+		ret = ""
+		vals = []
+		for field in fields:
+			val = None
+			if field == "CryptoCurrentSource":
+				self.getCryptoInfo(info)
+				vals.append(self.current_source)
+			elif field == "StreamURLInfo":
+				val = self.createStreamURLInfo(info)
+			elif field == "TransponderModulationFEC":
+				val = self.createModulation(fedata) + '-' + self.createFEC(fedata, feraw)
+			elif field == "TransponderName":
+				val = self.createTransponderName(feraw)
+			elif field == "ProviderName":
+				val = self.createProviderName(info)
+			elif field in ("NewLine", "NL"):
+				ret += "  ".join(vals) + "\n"
+				vals = []
+			else:
+				val = self.getTextByType(field)
+
+			if val:
+				vals.append(val)
+
+		return ret + "  ".join(vals)
+
+	def createStreamURLInfo(self, info):
+		refstr = info.getInfoString(iServiceInformation.sServiceref)
+		if "%3a//" in refstr.lower():
+			return refstr.replace("%3a", ":").replace("%3A", ":").split("://")[1].split("/")[0].split('@')[-1]
+		return ""
 
 	def createFrequency(self, fedata):
 		frequency = fedata.get("frequency")
@@ -572,14 +614,17 @@ class PliExtraInfo(Poll, Converter, object):
 	def createTunerSystem(self, fedata):
 		return fedata.get("system") or ""
 
-	def createOrbPos(self, feraw):
-		orbpos = feraw.get("orbital_position")
-		if orbpos != None:
+	def formatOrbPos(self, orbpos):
+		if isinstance(orbpos, int) and 0 <= orbpos <= 3600:  # sanity
 			if orbpos > 1800:
 				return str((float(3600 - orbpos)) / 10.0) + "\xb0" + "W"
-			elif orbpos > 0:
+			else:
 				return str((float(orbpos)) / 10.0) + "\xb0" + "E"
 		return ""
+
+	def createOrbPos(self, feraw):
+		orbpos = feraw.get("orbital_position")
+		return self.formatOrbPos(orbpos)
 
 	def createOrbPosOrTunerSystem(self, fedata, feraw):
 		orbpos = self.createOrbPos(feraw)
@@ -692,10 +737,8 @@ class PliExtraInfo(Poll, Converter, object):
 
 		if orbpos in sat_names:
 			return sat_names[orbpos]
-		elif orbpos > 1800:
-			return str((float(3600 - orbpos)) / 10.0) + "W"
 		else:
-			return str((float(orbpos)) / 10.0) + "E"
+			return self.formatOrbPos(orbpos)
 
 	def createProviderName(self, info):
 		return info.getInfoString(iServiceInformation.sProvider)
@@ -725,14 +768,14 @@ class PliExtraInfo(Poll, Converter, object):
 		if not info:
 			return ""
 
-		if self.type == "CryptoInfo":
-			self.getCryptoInfo(info)
+		if textType == "CurrentCrypto":
 			if int(config.usage.show_cryptoinfo.value) > 0:
-				return addspace(self.createCryptoBar(info)) + self.createCryptoSpecial(info)
+				self.getCryptoInfo(info)
+				return self.createCurrentCaidLabel()
 			else:
-				return addspace(self.createCryptoBar(info)) + addspace(self.current_source) + self.createCryptoSpecial(info)
+				return ""
 
-		if self.type == "CryptoBar":
+		if textType == "CryptoBar":
 			if int(config.usage.show_cryptoinfo.value) > 0:
 				self.getCryptoInfo(info)
 				return self.createCryptoBar(info)

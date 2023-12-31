@@ -68,6 +68,7 @@ import itertools
 import datetime
 import pickle
 from gettext import dgettext
+from re import match
 
 # hack alert!
 from Screens.Menu import MainMenu, Menu, mdom
@@ -165,7 +166,6 @@ resumePointCacheLast = int(time())
 
 class whitelist:
 	vbi = []
-	streamrelay = []
 
 
 def reload_whitelist_vbi():
@@ -175,26 +175,58 @@ def reload_whitelist_vbi():
 reload_whitelist_vbi()
 
 
-def reload_streamrelay():
-	whitelist.streamrelay = [line.strip() for line in open('/etc/enigma2/whitelist_streamrelay', 'r').readlines()] if os.path.isfile('/etc/enigma2/whitelist_streamrelay') else []
+class InfoBarStreamRelay:
+
+	FILENAME = "/etc/enigma2/whitelist_streamrelay"
+
+	def __init__(self):
+		self.__srefs = self.__sanitizeData(open(self.FILENAME, 'r').readlines()) if os.path.isfile(self.FILENAME) else []
+
+	def __sanitizeData(self, data):
+		return list(set([line.strip() for line in data if line and isinstance(line, str) and match("^(?:[0-9A-F]+[:]){10}$", line.strip())])) if isinstance(data, list) else []
+
+	def __saveToFile(self):
+		self.__srefs.sort(key=lambda ref: (int((x := ref.split(":"))[6], 16), int(x[5], 16), int(x[4], 16), int(x[3], 16)))
+		open(self.FILENAME, 'w').write('\n'.join(self.__srefs))
+
+	def toggle(self, nav, service):
+		if (servicestring := (service and service.toString())):
+			if servicestring in self.__srefs:
+				self.__srefs.remove(servicestring)
+			else:
+				self.__srefs.append(servicestring)
+			if nav.getCurrentlyPlayingServiceReference() == service:
+				nav.restartService()
+			self.__saveToFile()
+
+	def getData(self):
+		return self.__srefs
+
+	def setData(self, data):
+		self.__srefs = self.__sanitizeData(data)
+		self.__saveToFile()
+
+	data = property(getData, setData)
+
+	def streamrelayChecker(self, playref):
+		playrefstring = playref.toString()
+		if '%3a//' not in playrefstring and playrefstring in self.__srefs:
+			url = "http://%s:%s/" % (config.misc.softcam_streamrelay_url.getHTML(), config.misc.softcam_streamrelay_port.value)
+			if "127.0.0.1" in url:
+				playrefmod = ":".join([("%x" % (int(x[1], 16) + 1)).upper() if x[0] == 6 else x[1] for x in enumerate(playrefstring.split(':'))])
+			else:
+				playrefmod = playrefstring
+			playref = eServiceReference("%s%s%s:%s" % (playrefmod, url.replace(":", "%3a"), playrefstring.replace(":", "%3a"), ServiceReference(playref).getServiceName()))
+			print(f"[{self.__class__.__name__}] Play service {playref.toString()} via streamrelay")
+		return playref
+
+	def checkService(self, service):
+		return service and service.toString() in self.__srefs
 
 
-reload_streamrelay()
+streamrelay = InfoBarStreamRelay()
 
 subservice_groupslist = None
-
-
-def streamrelayChecker(playref):
-	playrefstring = playref.toString()
-	if '%3a//' not in playrefstring and playrefstring in whitelist.streamrelay:
-		url = "http://%s:%s/" % (config.misc.softcam_streamrelay_url.getHTML(), config.misc.softcam_streamrelay_port.value)
-		if "127.0.0.1" in url:
-			playrefmod = ":".join([("%x" % (int(x[1], 16) + 1)).upper() if x[0] == 6 else x[1] for x in enumerate(playrefstring.split(':'))])
-		else:
-			playrefmod = playrefstring
-		playref = eServiceReference("%s%s%s:%s" % (playrefmod, url.replace(":", "%3a"), playrefstring.replace(":", "%3a"), ServiceReference(playref).getServiceName()))
-		print("[Whitelist_StreamRelay] Play service via streamrelay as it is whitelisted as such", playref.toString())
-	return playref
 
 
 def reload_subservice_groupslist(force=False):
@@ -840,7 +872,7 @@ class InfoBarShowHide(InfoBarScreenSaver):
 				self.show()
 			if self.secondInfoBarScreen:
 				self.secondInfoBarScreen.hide()
-			self.secondInfoBarWasShown = False
+				self.secondInfoBarWasShown = False
 			self.EventViewIsShown = False
 		elif isStandardInfoBar(self) and config.usage.show_second_infobar.value == "EPG":
 			self.showDefaultEPG()
@@ -913,9 +945,6 @@ class InfoBarShowHide(InfoBarScreenSaver):
 					return ".hidevbi." in servicepath.lower()
 		return service and service.toString() in whitelist.vbi
 
-	def checkStreamrelay(self, service=None):
-		return (service or self.session.nav.getCurrentlyPlayingServiceReference()) and service.toString() in whitelist.streamrelay
-
 	def showHideVBI(self):
 		if self.checkHideVBI():
 			self.hideVBILineScreen.show()
@@ -933,17 +962,8 @@ class InfoBarShowHide(InfoBarScreenSaver):
 			open('/etc/enigma2/whitelist_vbi', 'w').write('\n'.join(whitelist.vbi))
 			self.showHideVBI()
 
-	def ToggleStreamrelay(self, service=None):
-		service = service or self.session.nav.getCurrentlyPlayingServiceReference()
-		if service:
-			servicestring = service.toString()
-			if servicestring in whitelist.streamrelay:
-				whitelist.streamrelay.remove(servicestring)
-			else:
-				whitelist.streamrelay.append(servicestring)
-				if self.session.nav.getCurrentlyPlayingServiceReference() == service:
-					self.session.nav.restartService()
-			open('/etc/enigma2/whitelist_streamrelay', 'w').write('\n'.join(whitelist.streamrelay))
+	def checkStreamrelay(self, service):
+		return streamrelay.checkService(service)
 
 	def queueChange(self):
 		self._waitForEventInfoTimer.stop()
@@ -1531,26 +1551,22 @@ class InfoBarMenu:
 		self.session.open(MessageBox, _("AV aspect is %s." % ASPECT_MSG[config.av.aspect.value]), MessageBox.TYPE_INFO, timeout=5, simple=True)
 
 	def showSystemMenu(self):
-		menulist = mdom.getroot().findall('menu')
-		for item in menulist:
-			if item.attrib['entryID'] == 'setup_selection':
-				menulist = item.findall('menu')
-				for item in menulist:
-					if item.attrib['entryID'] == 'system_selection':
-						menu = item
-		assert menu.tag == "menu", "root element in menu must be 'menu'!"
-		self.session.openWithCallback(self.mainMenuClosed, Menu, menu)
+		menulist = mdom.getroot().findall("menu")
+		for menuItem in menulist:
+			if menuItem.get("key") == "setup":
+				menulist2 = menuItem.findall("menu")
+				for menuItems in menulist2:
+					if menuItems.get('key') == "system":
+						self.session.openWithCallback(self.mainMenuClosed, Menu, menuItems)
 
 	def showNetworkMounts(self):
 		menulist = mdom.getroot().findall('menu')
-		for item in menulist:
-			if item.attrib['entryID'] == 'setup_selection':
-				menulist = item.findall('menu')
-				for item in menulist:
-					if item.attrib['entryID'] == 'network_menu':
-						menu = item
-		assert menu.tag == "menu", "root element in menu must be 'menu'!"
-		self.session.openWithCallback(self.mainMenuClosed, Menu, menu)
+		for menuItem in menulist:
+			if menuItem.get('key') == "setup":
+				menulist2 = menuItem.findall('menu')
+				for menuItems in menulist2:
+					if menuItems.get('key') == "network":
+						self.session.openWithCallback(self.mainMenuClosed, Menu, menuItems)
 
 	def showRFSetup(self):
 		self.session.openWithCallback(self.mainMenuClosed, Setup, 'RFmod')
@@ -2138,7 +2154,7 @@ class InfoBarSeek:
 			@staticmethod
 			def generateSkipHelp(context):
 				skipHelp = []
-				for action in [act for ctx, act in getKeyBindingKeys(filterfn=lambda key: key[0] == context and (key[1].startswith("seek:") or key[1].startswith("seekdef:")))]:
+				for action in [act for ctx, act in getKeyBindingKeys(filterfn=lambda key: key[0] == context and (key[1].startswith(("seek:", "seekdef:"))))]:
 					if action.startswith("seekdef:"):
 						skipTime = boundFunction(InfoBarSeekActionMap.seekTime, action)
 					else:
@@ -2835,7 +2851,7 @@ class InfoBarExtensions:
 		if pathExists('/usr/softcams/'):
 			softcams = os.listdir('/usr/softcams/')
 		for softcam in softcams:
-			if (softcam.lower().startswith('oscam') or softcam.lower().startswith('ncam')) and config.oscaminfo.showInExtensions.value:
+			if softcam.lower().startswith(('oscam', 'ncam')) and config.oscaminfo.showInExtensions.value:
 				return [((boundFunction(self.getOSname), boundFunction(self.openOScamInfo), lambda: True), None)] or []
 		else:
 			return []

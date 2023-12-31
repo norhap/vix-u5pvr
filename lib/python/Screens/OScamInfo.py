@@ -137,17 +137,17 @@ class OscamInfo:
 						elif "httpport" in i.lower():
 							port = i.split("=")[1].strip()
 						elif "httpallowed" in i.lower():
-							# Once we encounter a httpallowed statement, we have to assume oscam/ncam webif is blocking us ...
-							blocked = True
+							# Once we encounter a httpallowed statement, we have to assume oscam/ncam webif is blocking us
 							allowed = i.split("=")[1].strip()
-							if "::1" in allowed or "127.0.0.1" in allowed or "0.0.0.0-255.255.255.255" in allowed:
-								# ... until we find either 127.0.0.1 or ::1 in allowed list
-								blocked = False
 							if "::1" not in allowed:
 								ipconfigured = False
-
-			ret = [user, pwd, port, ipconfigured]			# 127.0.0.1 gets 403 in oscam webif so ignore block fix later
-
+							if "::1" in allowed or "127.0.0.1" in allowed or "0.0.0.0-255.255.255.255" in allowed:
+								# ... until we find either 127.0.0.1 or ::1 in allowed list
+								blocked = False  # noqa: F841
+							else:
+								blocked = True
+			if not blocked:
+				ret = [user, pwd, port, ipconfigured]
 		return ret
 
 	def openWebIF(self, part=None, reader=None):
@@ -245,10 +245,10 @@ class OscamInfo:
 				for client in clients:
 					name = client.attrib["name"]
 					proto = client.attrib["protocol"]
-					if "au" in client.attrib:
-						au = client.attrib["au"]
-					else:
-						au = ""
+					# au = client.attrib["au"] if "au" in client.attrib else ""
+					# login = client.find("times").attrib["login"]
+					# online = client.find("times").attrib["online"]
+					# port = client.find("connection").attrib["port"]
 					caid = client.find("request").attrib["caid"]
 					srvid = client.find("request").attrib["srvid"]
 					if "ecmtime" in client.find("request").attrib:
@@ -260,22 +260,15 @@ class OscamInfo:
 					else:
 						ecmtime = _("n/a")
 					srvname = client.find("request").text
+					srvname_short = _("n/a")
 					if srvname is not None:
-						if ":" in srvname:
-							srvname_short = srvname.split(":")[1].strip()
-						else:
-							srvname_short = srvname
-					else:
-						srvname_short = _("n/a")
-					login = client.find("times").attrib["login"]
-					online = client.find("times").attrib["online"]
+						srvname_short = srvname.split(":")[1].strip() if ":" in srvname else srvname
 					if proto.lower() == "dvbapi":
 						ip = ""
 					else:
 						ip = client.find("connection").attrib["ip"]
 						if ip == "0.0.0.0":
 							ip = ""
-					port = client.find("connection").attrib["port"]
 					connstatus = client.find("connection").text
 					if name != "" and name != "anonymous" and proto != "":
 						try:
@@ -423,7 +416,6 @@ class oscMenuList(MenuList):
 class OscamInfoMenu(Screen):
 	def __init__(self, session):
 		Screen.__init__(self, session)
-		NAMEBIN = check_NAMEBIN()
 		NAMEBIN2 = check_NAMEBIN2()
 		self.setTitle(_("%s Info - Main Menu" % NAMEBIN2))
 		self.menu = [_("Show Ecm info"), _("Show Clients"), _("Show Readers/Proxies"), _("Show Log"), _("Card info (CCcam-Reader)"), _("Ecm Statistics"), _("Setup")]
@@ -585,7 +577,6 @@ class OscamInfoMenu(Screen):
 		return menuentries
 
 	def showMenu(self):
-		NAMEBIN = check_NAMEBIN()
 		entr = self.buildMenu(self.menu)
 		self["mainmenu"].l.setList(entr)
 		self["mainmenu"].moveToIndex(0)
@@ -626,7 +617,7 @@ class oscECMInfo(Screen, OscamInfo):
 	def showData(self):
 		dataECM = self.getECMInfo(self.ecminfo)
 		out = []
-		y = 0
+		# y = 0
 		for i in dataECM:
 			out.append(self.buildListEntry(i))
 		self["output"].l.setItemHeight(int(30 * f))
@@ -814,7 +805,6 @@ class oscInfo(Screen, OscamInfo):
 		return res
 
 	def showData(self):
-		NAMEBIN = check_NAMEBIN()
 		NAMEBIN2 = check_NAMEBIN2()
 		if self.firstrun:
 			data = self.webif_data
@@ -1133,20 +1123,20 @@ class oscReaderStats(Screen, OscamInfo):
 			if dataWebif[0]:
 				dataReader = ElementTree.XML(dataWebif[1])
 				rdr = dataReader.find("reader")
-#					emms = rdr.find("emmstats")
-#					if "totalwritten" in emms.attrib:
-#						emm_wri = emms.attrib["totalwritten"]
-#					if "totalskipped" in emms.attrib:
-#						emm_ski = emms.attrib["totalskipped"]
-#					if "totalblocked" in emms.attrib:
-#						emm_blk = emms.attrib["totalblocked"]
-#					if "totalerror" in emms.attrib:
-#						emm_err = emms.attrib["totalerror"]
+				# emms = rdr.find("emmstats")
+				# if "totalwritten" in emms.attrib:
+				# 	emm_wri = emms.attrib["totalwritten"]
+				# if "totalskipped" in emms.attrib:
+				# 	emm_ski = emms.attrib["totalskipped"]
+				# if "totalblocked" in emms.attrib:
+				# 	emm_blk = emms.attrib["totalblocked"]
+				# if "totalerror" in emms.attrib:
+				# 	emm_err = emms.attrib["totalerror"]
 
 				ecmstat = rdr.find("ecmstats")
-				totalecm = ecmstat.attrib["totalecm"]
+				# totalecm = ecmstat.attrib["totalecm"]
 				ecmcount = ecmstat.attrib["count"] and int(ecmstat.attrib["count"]) or 0
-				lastacc = ecmstat.attrib["lastaccess"]
+				# lastacc = ecmstat.attrib["lastaccess"]
 				ecm = ecmstat.findall("ecm")
 				if ecmcount > 0:
 					for j in ecm:
@@ -1154,7 +1144,7 @@ class oscReaderStats(Screen, OscamInfo):
 						channel = j.attrib["channelname"]
 						avgtime = j.attrib["avgtime"]
 						lasttime = j.attrib["lasttime"]
-						retcode = j.attrib["rc"]
+						# retcode = j.attrib["rc"]
 						rcs = j.attrib["rcs"]
 						num = j.text
 						if rcs == "found":

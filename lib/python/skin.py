@@ -393,7 +393,7 @@ def loadPixmap(path, desktop, width=0, height=0):
 	return pixmap
 
 
-def collectAttributes(skinAttributes, node, context, skinPath=None, ignore=(), filenames=frozenset(("pixmap", "pointer", "seek_pointer", "backgroundPixmap", "selectionPixmap", "sliderPixmap", "scrollbarSliderPicture", "scrollbarbackgroundPixmap", "scrollbarBackgroundPicture"))):
+def collectAttributes(skinAttributes, node, context, skinPath=None, ignore=(), filenames=frozenset(("pixmap", "pointer", "seek_pointer", "backgroundPixmap", "selectionPixmap", "selectionPixmapLarge", "sliderPixmap", "scrollbarSliderPicture", "scrollbarbackgroundPixmap", "scrollbarBackgroundPicture"))):
 	size = None
 	pos = None
 	font = None
@@ -516,6 +516,9 @@ class AttributeParser:
 
 	def selectionPixmap(self, value):
 		self.guiObject.setSelectionPicture(loadPixmap(value, self.desktop))
+
+	def selectionPixmapLarge(self, value):
+		self.guiObject.setSelectionPictureLarge(loadPixmap(value, self.desktop))
 
 	def sliderPixmap(self, value):
 		self.guiObject.setScrollbarPixmap(loadPixmap(value, self.desktop))
@@ -1429,6 +1432,10 @@ def findWidgets(name):
 				source = widget.get("source", None)
 				if source is not None:
 					widgetSet.add(source)
+				addonConnection = widget.get("connection", None)
+				if addonConnection is not None:
+					for x in addonConnection.split(","):
+						widgetSet.add(x)
 		panels = element.findall("panel")
 		if panels is not None:
 			for panel in panels:
