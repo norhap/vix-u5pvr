@@ -1,4 +1,4 @@
-from skin import findSkinScreen, parameters, menus, menuicons
+from skin import findSkinScreen, parameters, menuicons
 
 from Components.ActionMap import HelpableNumberActionMap, HelpableActionMap
 from Components.config import config, ConfigDictionarySet, configfile, NoSave
@@ -14,7 +14,7 @@ from Plugins.Plugin import PluginDescriptor
 from Screens.HelpMenu import HelpableScreen
 from Screens.MessageBox import MessageBox
 from Screens.ParentalControlSetup import ProtectedScreen
-from Screens.Screen import Screen, ScreenSummary
+from Screens.Screen import Screen
 
 from Tools.BoundFunction import boundFunction
 from Tools.Directories import resolveFilename, SCOPE_SKINS, SCOPE_CURRENT_SKIN
@@ -42,11 +42,6 @@ def MenuEntryPixmap(key, png_cache):
 		if pngPath:
 			png = LoadPixmap(resolveFilename(SCOPE_CURRENT_SKIN, pngPath), cached=True, width=w, height=0 if pngPath.endswith(".svg") else h)
 	return png
-
-
-class MenuSummary(ScreenSummary):
-	def __init__(self, session, parent):
-		ScreenSummary.__init__(self, session, parent=parent)
 
 
 class Menu(Screen, HelpableScreen, ProtectedScreen):
@@ -244,7 +239,7 @@ class Menu(Screen, HelpableScreen, ProtectedScreen):
 		title = self.__class__.__name__ == "MenuSort" and _("Menusort (%s)") % title or title
 		self["title"] = StaticText(title)
 		self.setTitle(title)
-		self.loadMenuImage()
+		self.setImage(self.menuID, "menu")
 
 		self.number = 0
 		self.nextNumberTimer = eTimer()
@@ -260,17 +255,6 @@ class Menu(Screen, HelpableScreen, ProtectedScreen):
 
 	def layoutFinished(self):
 		self.screenContentChanged()
-		if self.menuImage and "menuimage" in self:
-			self["menuimage"].instance.setPixmap(self.menuImage)
-
-	def loadMenuImage(self):
-		self.menuImage = None
-		if menus and self.menuID:
-			menuImage = menus.get(self.menuID, menus.get("default", ""))
-			if menuImage:
-				self.menuImage = LoadPixmap(resolveFilename(SCOPE_CURRENT_SKIN, menuImage))
-				if self.menuImage:
-					self["menuimage"] = Pixmap()
 
 	def createMenuList(self):
 		if self.__class__.__name__ != "MenuSort":
@@ -361,9 +345,6 @@ class Menu(Screen, HelpableScreen, ProtectedScreen):
 	def closeRecursive(self):
 		self.resetNumberKey()
 		self.close(True)
-
-	def createSummary(self):
-		return MenuSummary
 
 	def isProtected(self):
 		if config.ParentalControl.setuppinactive.value:
