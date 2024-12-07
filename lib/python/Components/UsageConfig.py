@@ -110,6 +110,7 @@ def InitUsageConfig():
 
 	config.usage.infobar_frontend_source = ConfigSelection(default="tuner", choices=[("settings", _("Settings")), ("tuner", _("Tuner"))])
 
+	config.usage.picon_lookup_priority = ConfigSelection(default="png_svg", choices=[("png_only", _("png only")), ("svg_only", _("svg only")), ("png_svg", _("png, then svg")), ("svg_png", _("svg, then png"))])
 	config.usage.show_picon_bkgrn = ConfigSelection(default="transparent", choices=[("none", _("Disabled")), ("transparent", _("Transparent")), ("blue", _("Blue")), ("red", _("Red")), ("black", _("Black")), ("white", _("White")), ("lightgrey", _("Light Grey")), ("grey", _("Grey"))])
 	config.usage.show_genre_info = ConfigYesNo(default=False)
 	config.usage.menu_style = ConfigSelection(default="standard", choices=[("standard", _("Standard")), ("horizontal", _("Horizontal"))])
@@ -776,7 +777,7 @@ def InitUsageConfig():
 		for i, d in enumerate(units[2]):
 			if unit := int(number / d):
 				return "%s %s" % (unit, units[0 if unit == 1 else 1][i])
-		return "0 minutes"
+		return _("disabled")
 	choices = [(i, wdhm(i)) for i in [i * 15 for i in range(0, 4)] + [i * 60 for i in range(1, 9)] + [i * 120 for i in range(5, 12)] + [i * 24 * 60 for i in range(1, 8)]]
 	config.epg.histminutes = ConfigSelection(default=0, choices=choices)
 

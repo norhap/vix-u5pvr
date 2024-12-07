@@ -44,7 +44,7 @@ eDVBAudio::eDVBAudio(eDVBDemux *demux, int dev)
 	if (tmp_fd == 0)
 	{
 		::close(tmp_fd);
-		tmp_fd = -1;	
+		tmp_fd = -1;
 		fd0lock = ::open("/dev/null", O_RDONLY | O_CLOEXEC);
 		/* eDebug("[decoder][eDVBAudio] opening null fd returned: %d", fd0lock); */
 	}
@@ -281,7 +281,7 @@ eDVBVideo::eDVBVideo(eDVBDemux *demux, int dev, bool fcc_enable)
 	if (tmp_fd == 0)
 	{
 		::close(tmp_fd);
-		tmp_fd = -1;	
+		tmp_fd = -1;
 		fd0lock = ::open("/dev/null", O_RDONLY | O_CLOEXEC);
 		/* eDebug("[decoder][eDVBVideo] opening null fd returned: %d", fd0lock); */
 	}
@@ -739,7 +739,7 @@ eDVBPCR::eDVBPCR(eDVBDemux *demux, int dev): m_demux(demux), m_dev(dev)
 	if (tmp_fd == 0)
 	{
 		::close(tmp_fd);
-		tmp_fd = -1;	
+		tmp_fd = -1;
 		fd0lock = ::open("/dev/null", O_RDONLY | O_CLOEXEC);
 		/* eDebug("[decoder][eDVBPCR] opening null fd returned: %d", fd0lock); */
 	}
@@ -814,7 +814,7 @@ eDVBPCR::~eDVBPCR()
 DEFINE_REF(eDVBTText);
 
 eDVBTText::eDVBTText(eDVBDemux *demux, int dev)
-    :m_demux(demux), m_dev(dev)
+	:m_demux(demux), m_dev(dev)
 {
 	char filename[128] = {};
 	sprintf(filename, "/dev/dvb/adapter%d/demux%d", demux->adapter, demux->demux);
@@ -824,7 +824,7 @@ eDVBTText::eDVBTText(eDVBDemux *demux, int dev)
 	if (tmp_fd == 0)
 	{
 		::close(tmp_fd);
-		tmp_fd = -1;	
+		tmp_fd = -1;
 		fd0lock = ::open("/dev/null", O_RDONLY | O_CLOEXEC);
 		/* eDebug("[decoder][eDVBText] opening null fd returned: %d", fd0lock); */
 	}
@@ -1489,7 +1489,7 @@ int eTSMPEGDecoder::getVideoGamma()
 
 RESULT eTSMPEGDecoder::prepareFCC(int fe_id, int vpid, int vtype, int pcrpid)
 {
-	//eDebug("[eTSMPEGDecoder] prepareFCC vp : %d, vt : %d, pp : %d, fe : %d", vpid, vtype, pcrpid, fe_id); 
+	//eDebug("[eTSMPEGDecoder] prepareFCC vp : %d, vt : %d, pp : %d, fe : %d", vpid, vtype, pcrpid, fe_id);
 
 	if ((fccGetFD() == -1) || (fccSetPids(fe_id, vpid, vtype, pcrpid) < 0) || (fccStart() < 0))
 	{
