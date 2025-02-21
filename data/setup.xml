@@ -26,7 +26,7 @@
 		<item level="2" text="Http(s) stream start delay" description="Define additional delay in milliseconds before start of http(s) streams, e.g. to connect a remote tuner, you use a complex system of DiSEqC.">config.usage.http_startdelay</item>
 		<item level="2" text="Wake On LAN" description="When enabled the set top box is able to wakeup on LAN" requires="WakeOnLAN">config.usage.wakeOnLAN</item>
 		<item level="2" text="Enable new GStreamer playback" description="If enabled, the new GStreamer playback engine will be used.">config.misc.usegstplaybin3</item>
-		<item level="2" text="Remote control source*" requires="DeveloperImage" description="In Developer images only. Allows swapping between oe-alliance/branding or oe-alliance/remotes for button position mapping and rc graphic.">config.misc.RCSource</item>
+		<item level="2" text="Remote control source*" description="Allows swapping between oe-alliance/branding or oe-alliance/remotes for button position mapping and rc graphic.">config.misc.RCSource</item>
 		<item level="0" text="Force alpha blending" description="Alpha blending is the process of combining an image with a background to create the appearance of partial or full transparency. 'Always' may cause receivers that don't support hardware acceleration to render images more slowly. Also some skins may show strange side effects.">config.skin.pixmap_force_alphablending</item>
 		<item level="0" text="Picon type priority" description="Set the lookup priority when searching for picons. If all your picons are png set to 'png only' to save on lookup time.">config.usage.picon_lookup_priority</item>
 		<item level="0" text="Wake up to standby" description="When waking from deep standby, should the %s %s go directly to standby mode?">config.usage.power.wake_up_to_standby</item>
@@ -647,7 +647,7 @@
 		</if>
 	</setup>
 	<setup key="HdmiCec" title="HDMI-CEC Setup">
-		<item text="Enabled" description="Enable or disable using HDMI-CEC.">config.hdmicec.enabled</item>
+		<item text="Enabled *" description="Enable or disable using HDMI-CEC.">config.hdmicec.enabled</item>
 		<if conditional="config.hdmicec.enabled.value">
 			<item text="Put TV in standby" description="Automatically put the TV in standby whenever the receiver goes into standby or deep standby.">config.hdmicec.control_tv_standby</item>
 			<item text="Wakeup TV from standby" description="When the receiver wakes from standby, it will send a command to the TV to bring it out of standby too.">config.hdmicec.control_tv_wakeup</item>
@@ -662,7 +662,8 @@
 			<if conditional="config.hdmicec.handle_tv_wakeup.value">
 				<item text="Wakeup signal from TV" description="Wake the receiver from standby when the wake command is sent from the TV.">config.hdmicec.tv_wakeup_detection</item>
 			</if>
-			<item text="Set fixed CEC address" description="Fix CEC address setting, default is 1.0.0.0">config.hdmicec.fixed_physical_address</item>
+			<item text="Allow CEC address change *" description="When enabled will allow CEC address change. *Reboot required to activate">config.hdmicec.change_physaddress</item>
+			<item text="CEC address *" description="CEC address, to override enable CEC address change. *Reboot required to activate">config.hdmicec.fixed_physical_address</item>
 			<item text="Forward volume keys" description="Volume keys on the receiver remote will control the TV volume.">config.hdmicec.volume_forwarding</item>
 			<item text="Force volume keys" description="Force receiver to send volume keys to all devices on hdmi when no response to audio channel request.">config.hdmicec.force_volume_forwarding</item>
 			<item text="Put A/V receiver in standby" description="Put A/V receiver in standby.">config.hdmicec.control_receiver_standby</item>
