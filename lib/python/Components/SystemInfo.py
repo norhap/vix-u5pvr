@@ -1,12 +1,12 @@
 from ast import literal_eval
-from os import listdir
 from hashlib import md5
+from os import listdir
 from os.path import isfile, join as pathjoin
 from re import split
 from enigma import Misc_Options, eDVBCIInterfaces, eDVBResourceManager
 
 from Components.RcModel import rc_model
-from Tools.Directories import fileCheck, fileExists, fileHas, pathExists, resolveFilename, SCOPE_LIBDIR, SCOPE_SKIN, fileReadLines
+from Tools.Directories import fileCheck, fileExists, fileHas, pathExists, resolveFilename, SCOPE_LIBDIR, SCOPE_SKIN, fileReadLine, fileReadLines
 from Tools.HardwareInfo import HardwareInfo
 
 
@@ -74,13 +74,21 @@ BoxInfo = BoxInformation()
 SystemInfo = BoxInfo.boxInfo
 
 
+if BoxInfo.getItem("model") in ("dm900", "dm920", "et13000"):
+	CHIPSET = "7252s"
+elif BoxInfo.getItem("model") in ("hd51", "vs1500", "h7", "h17"):
+	CHIPSET = "7251s"
+else:
+	chipset = fileReadLine("/proc/stb/info/chipset")
+	CHIPSET = chipset.lower().replace("\n", "").replace("bcm", "").replace("brcm", "")
+
 ARCHITECTURE = BoxInfo.getItem("architecture")
 BRAND = BoxInfo.getItem("brand")
 MODEL = BoxInfo.getItem("model")
 RCNAME = BoxInfo.getItem('rcname')
 SOC_FAMILY = BoxInfo.getItem("socfamily")
 SOC_BRAND = split(r'(\d.*)', SOC_FAMILY)[0]
-CHIPSET = split(r'(\d.*)', SOC_FAMILY)[1]
+KERNEL = BoxInfo.getItem("kernel")
 DISPLAYTYPE = BoxInfo.getItem("displaytype")
 MTDROOTFS = BoxInfo.getItem("mtdrootfs")
 DISPLAYMODEL = BoxInfo.getItem("displaymodel")
@@ -246,7 +254,7 @@ SystemInfo["hasXcoreVFD"] = SystemInfo["boxtype"] in ("osmega", "spycat4k", "spy
 SystemInfo["HasHDMIin"] = SystemInfo["hdmifhdin"] or SystemInfo["hdmihdin"]
 SystemInfo["HDMIinPiP"] = SystemInfo["HasHDMIin"] and BRAND != "dreambox"
 SystemInfo["CanHDMIinRecord"] = fileExists("/proc/stb/encoder/0/decoder")
-SystemInfo["Has24hz"] = fileCheck("/proc/stb/video/videomode_24hz")
+SystemInfo["Has24hz"] = fileCheck("/proc/stb/video/videomode_24hz") or MODEL in ("h7")
 SystemInfo["canBackupEMC"] = MODEL in ("hd51", "h7") and ("disk.img", "%s" % SystemInfo["MBbootdevice"]) or MODEL in ("osmio4k", "osmio4kplus", "osmini4k") and ("emmc.img", "%s" % SystemInfo["MBbootdevice"]) or SystemInfo["HasHiSi"] and ("usb_update.bin", "none")
 SystemInfo["canMode12"] = MODEL in ("hd51", "h7") and ("brcm_cma=440M@328M brcm_cma=192M@768M", "brcm_cma=520M@248M brcm_cma=200M@768M")
 SystemInfo["HasMMC"] = fileHas("/proc/cmdline", "root=/dev/mmcblk") or "mmcblk" in SystemInfo["mtdrootfs"]
@@ -284,12 +292,13 @@ SystemInfo["hasRCA"] = SystemInfo["rca"]
 SystemInfo["hasScart"] = SystemInfo["scart"]
 SystemInfo["hasScartYUV"] = SystemInfo["scartyuv"]
 SystemInfo["hasYUV"] = SystemInfo["yuv"]
-SystemInfo["VideoModes"] = CHIPSET in (  # 2160p and 1080p capable hardware...
+
+SystemInfo["VideoModes"] = CHIPSET.replace("hi", "") in (  # 2160p and 1080p capable hardware...
 	"5272s", "7251", "7251s", "7252", "7252s", "7278", "7366", "7376", "7444s", "72604", "3798cv200", "3798mv200", "3798mv200advca", "3798mv200h", "3798mv300"
 ) and (
 	["720p", "1080p", "2160p", "2160p30", "1080i", "576p", "576i", "480p", "480i"],  # Normal modes.
 	{"720p", "1080p", "2160p", "2160p30", "1080i"}  # Widescreen modes.
-) or CHIPSET in (  # 1080p capable hardware...
+) or CHIPSET.replace("hi", "") in (  # 1080p capable hardware...
 	"7241", "7356", "73565", "7358", "7362", "73625", "7424", "7425", "7552", "3716mv410", "3716mv430"
 ) and (
 	["720p", "1080p", "1080i", "576p", "576i", "480p", "480i"],  # Normal modes.
@@ -303,8 +312,19 @@ SystemInfo["FbcTunerPowerAlwaysOn"] = SystemInfo["boxtype"] in ("vusolo4k", "vud
 SystemInfo["HasPhysicalLoopthrough"] = ["Vuplus DVB-S NIM(AVL2108)", "GIGA DVB-S2 NIM (Internal)"]
 SystemInfo["HasFBCtuner"] = ["Vuplus DVB-C NIM(BCM3158)", "Vuplus DVB-C NIM(BCM3148)", "Vuplus DVB-S NIM(7376 FBC)", "Vuplus DVB-S NIM(45308X FBC)", "Vuplus DVB-S NIM(45208 FBC)", "DVB-S2 NIM(45208 FBC)", "DVB-S2X NIM(45308X FBC)", "DVB-S2 NIM(45308 FBC)", "DVB-C NIM(3128 FBC)", "BCM45208", "BCM45308X", "BCM45308X FBC", "BCM3158"]
 SystemInfo["FCCactive"] = False
+
+# The remote names used in the code below are the names used by oe-mirrors/branding-module,
+# so we must compare against rc_model.getRcFolder() which is also part of branding-module.
+# Remote names at oe-alliance/remotes are different in some cases so we must stick to
+# one standard on both sides of the comparison.
 SystemInfo["rc_model"] = rc_model.getRcFolder()
-SystemInfo["mapKeyInfoToEpgFunctions"] = RCNAME in ("vu", "vu2", "vu3", "vu4")  # due to button limitations of the remote control
-SystemInfo["hasDuplicateVideoAndPvrButtons"] = RCNAME in ("edision3",)  # Allow multiple functions only if both buttons are present
-SystemInfo["toggleTvRadioButtonEvents"] = RCNAME in ("abcom", "ax4", "beyonwiz1", "beyonwiz2", "gb3", "gb4", "gb5", "gb6", "gb7", "octagon1", "octagon3", "octagon4", "qviart5", "qviart7", "sf8008", "sf8008m", "uclan1", "uniboxhde")  # due to button limitations of the remote control
+SystemInfo["mapKeyInfoToEpgFunctions"] = SystemInfo["rc_model"] in ("vu", "vu2", "vu3", "vu4")  # due to button limitations of the remote control
+SystemInfo["hasDuplicateVideoAndPvrButtons"] = SystemInfo["rc_model"] in ("edision3",)  # Allow multiple functions only if both buttons are present
+SystemInfo["toggleTvRadioButtonEvents"] = SystemInfo["rc_model"] in ("abcom", "ax4", "beyonwiz1", "beyonwiz2", "gb3", "gb4", "gb5", "gb6", "gb7", "octagon1", "octagon3", "octagon4", "qviart5", "qviart7", "sf8008", "sf8008m", "uclan1", "uniboxhde")  # due to button limitations of the remote control
 SystemInfo["rc_default"] = SystemInfo["rc_model"] in ("dmm0", )
+
+# If any remotes are missing from oe-mirrors/branding-module they should be added. The
+# xml file format at oe-alliance/remotes is different from oe-mirrors/branding-module,
+# but OpenViX/OpenBH can read both formats. It seems files of both formats are now being
+# added to oe-mirrors/branding-module. For us this is not a problem but may be for other
+# distros that can't handle that format.
