@@ -122,6 +122,9 @@ class ParentalControl:
 				self.PinDlg = session.openWithCallback(boundFunction(self.servicePinEntered, ref), PinInput, triesEntry=config.ParentalControl.retries.servicepin, pinList=self.getPinList(), service=ServiceReference(ref).getServiceName(), title=title, windowTitle=_("Parental control"), simple=False)
 			else:
 				Tools.Notifications.AddNotificationParentalControl(boundFunction(self.servicePinEntered, ref), PinInput, triesEntry=config.ParentalControl.retries.servicepin, pinList=self.getPinList(), service=ServiceReference(ref).getServiceName(), title=title, windowTitle=_("Parental control"))
+			import NavigationInstance
+			if NavigationInstance.instance and NavigationInstance.instance.currentlyPlayingServiceReference and 'FROM BOUQUET "userbouquet.' not in service:
+				NavigationInstance.instance.stopService()  # kill current service since we are on protected service and may cancel the pin
 			return False
 		else:
 			return True
@@ -189,7 +192,10 @@ class ParentalControl:
 		if result:
 			self.setSessionPinCached()
 			self.hideBlacklist()
-			self.callback(ref=service)
+			try:
+				self.callback(ref=service, forceRestart=True)
+			except:
+				self.callback(ref=service)
 		elif result is False:
 			messageText = _("The pin code you entered is wrong.")
 			if self.session:
