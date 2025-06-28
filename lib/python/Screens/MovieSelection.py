@@ -57,7 +57,7 @@ config.movielist.last_selected_tags = ConfigSet([], default=[])
 config.movielist.play_audio_internal = ConfigYesNo(default=True)
 config.movielist.settings_per_directory = ConfigYesNo(default=True)
 config.movielist.perm_sort_changes = ConfigYesNo(default=True)
-config.movielist.root = ConfigSelection(default="/media", choices=["/", "/media", "/media/hdd", "/media/hdd/movie", "/media/usb", "/media/usb/movie"])
+config.movielist.root = ConfigSelection(default="/media/hdd/movie", choices=["/", "/media", "/media/hdd", "/media/hdd/movie", "/media/usb", "/media/usb/movie"])
 config.movielist.hide_extensions = ConfigYesNo(default=False)
 config.movielist.stop_service = ConfigYesNo(default=True)
 config.movielist.enable_collections = ConfigSelection(default=0, choices=[(0, _("Off")), (1, _("On except in same named directory")), (2, _("On"))])
@@ -173,7 +173,7 @@ def diskFreeSpace():
 
 
 def trashcanSize(path):
-	if not path.startswith("/media/autofs"):
+	if path != "/media/autofs/":
 		try:
 			if size := get_size(getTrashFolder(path)):
 				return _("Trashcan:") + " " + bytesToHumanReadable(size)
@@ -653,6 +653,7 @@ class MovieSelection(Screen, HelpableScreen, SelectionEventInfo, InfoBarBase, Pr
 
 		self["key_menu"] = StaticText(_("MENU"))
 		self["key_info"] = StaticText(_("INFO"))
+		self["key_0"] = StaticText(_("0"))  # toggleMark
 
 		self["movie_off"] = MultiPixmap()
 		self["movie_off"].hide()
@@ -1304,7 +1305,7 @@ class MovieSelection(Screen, HelpableScreen, SelectionEventInfo, InfoBarBase, Pr
 			self.startPreview()
 
 	def seekRelative(self, direction, amount):
-		if self.list.playInBackground or self.list.playInBackground:
+		if self.list.playInBackground:
 			seekable = self.getSeek()
 			if seekable is None:
 				return
@@ -1598,6 +1599,11 @@ class MovieSelection(Screen, HelpableScreen, SelectionEventInfo, InfoBarBase, Pr
 			return
 
 		self.saveconfig()
+		from Screens.InfoBar import InfoBar
+		infobar = InfoBar.instance
+		if self.session.nav.getCurrentlyPlayingServiceReference():
+			if not infobar.timeshiftEnabled() and ':0:/' not in self.session.nav.getCurrentlyPlayingServiceReference().toString():
+				infobar.shouldRestartSubtitles = True
 		self.close(None)
 
 	def saveconfig(self):

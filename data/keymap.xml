@@ -202,6 +202,10 @@
 		<key id="\x1b" mapto="cancel" flags="m" />
 	</map>
 
+	<map context="InfoActions"><!-- for compatibility with some shared plugins -->
+		<key id="KEY_INFO" mapto="info" flags="m" />
+	</map>
+
 	<map context="TextEditActions">
 		<key id="KEY_BACK" mapto="backspace" flags="mr" />
 		<key id="KEY_LAST" mapto="backspace" flags="mr" />
@@ -1001,6 +1005,11 @@
 		<key id="KEY_PROGRAM" mapto="timer" flags="b" />
 		<key id="KEY_PROGRAM" mapto="timerlong" flags="l" />
 		<key id="KEY_BACK" mapto="back" flags="m" />
+	</map>
+
+	<map context="EPGCatchUpActions">
+		<key id="KEY_PLAY" mapto="play" flags="m" />
+		<key id="KEY_PLAYPAUSE" mapto="play" flags="m" />
 	</map>
 
 	<map context="EventViewActions">

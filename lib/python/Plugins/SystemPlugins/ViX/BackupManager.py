@@ -14,8 +14,9 @@ from Components.Harddisk import harddiskmanager, bytesToHumanReadable
 from Components.Label import Label
 from Components.MenuList import MenuList
 from Components.Sources.StaticText import StaticText
-from Components.SystemInfo import SystemInfo
+from Components.SystemInfo import SystemInfo, DISPLAYBRAND, IMAGETYPE, KERNEL, MACHINENAME
 import Components.Task
+from Components.UserInstalledPackages import UserInstalledPackages
 from Screens.MessageBox import MessageBox
 from Screens.Screen import Screen
 from Screens.Setup import Setup
@@ -495,7 +496,7 @@ class VIXBackupManager(Screen):
 			print("[BackupManager] Restoring Stage 3: No network connection, plugin restore not possible")
 			AddPopupWithCallback(
 				self.Stage6,
-				_("Your %s %s is not connected to a network. Please check your network settings and try again.") % (SystemInfo["displaybrand"], SystemInfo["machinename"]),
+				_("Your %s %s is not connected to a network. Please check your network settings and try again.") % (DISPLAYBRAND, MACHINENAME),
 				MessageBox.TYPE_INFO,
 				15,
 				NOPLUGINS
@@ -513,7 +514,7 @@ class VIXBackupManager(Screen):
 			print("[BackupManager] Restoring Stage 3: no network connection, plugin restore not possible")
 			AddPopupWithCallback(
 				self.Stage6,
-				_("Your %s %s is not connected to the Internet. Please check your network settings and try again.") % (SystemInfo["displaybrand"], SystemInfo["machinename"]),
+				_("Your %s %s is not connected to the Internet. Please check your network settings and try again.") % (DISPLAYBRAND, MACHINENAME),
 				MessageBox.TYPE_INFO,
 				15,
 				NOPLUGINS
@@ -924,7 +925,7 @@ class AutoBackupManagerTimer:
 			print("[BackupManager] Backup onTimer occured at", strftime("%c", localtime(now)))
 			from Screens.Standby import inStandby
 			if not inStandby and config.backupmanager.query.value:  # Check for querying enabled
-				message = _("Your %s %s is about to run a backup of your settings and to detect your plugins.\nDo you want to allow this?") % (SystemInfo["displaybrand"], SystemInfo["machinename"])
+				message = _("Your %s %s is about to run a backup of your settings and to detect your plugins.\nDo you want to allow this?") % (DISPLAYBRAND, MACHINENAME)
 				ybox = self.session.openWithCallback(self.doBackup, MessageBox, message, MessageBox.TYPE_YESNO, timeout=30)
 				ybox.setTitle("Scheduled backup.")
 			else:
@@ -977,7 +978,7 @@ class BackupFiles(Screen):
 
 	def __init__(self, session, backuptype=None):
 		Screen.__init__(self, session)
-		self.Console = Console()
+		self.pluginreader = UserInstalledPackages()
 		self.ConsoleB = Console(binary=True)
 		self.backuptype = backuptype
 		self.BackupDevice = config.backupmanager.backuplocation.value
@@ -1122,44 +1123,21 @@ class BackupFiles(Screen):
 		output.close()
 		self.backupdirs = " ".join(config.backupmanager.backupdirs.value)
 		print("[BackupManager] Listing installed plugins")
-		self.Console.ePopen("opkg status", self.Stage2Complete)
+		self.pluginreader.run(self.Stage2Complete)
 
-	def Stage2Complete(self, result, retval, extra_args):
-		if result:
-			plugins_out = []
-			opkg_status_list = result.split("\n\n")
-			# print("[BackupManager] result=%s, retval=%s" % (opkg_status_list, retval))
-			for opkg_status in opkg_status_list:
-				plugin = ""
-				opkg_status_split = opkg_status.split("\n")
-				for line in opkg_status_split:
-					if line.startswith("Package"):
-						parts = line.strip().split()
-						if len(parts) > 1 and parts[1] not in ("opkg", "openvix-base"):
-							plugin = parts[1]
-							continue
-					if plugin and line.startswith("Status") and "user installed" in line:
-						plugins_out.append(plugin)
-						break
-			output = open("/tmp/ExtraInstalledPlugins", "w")
-			output.write("\n".join(plugins_out))
-			output.close()
-
-		if path.exists("/tmp/ExtraInstalledPlugins"):
-			print("[BackupManager] Listing completed.")
-			self.Stage2Completed = True
-		else:
-			self.session.openWithCallback(self.BackupComplete, MessageBox, _("Plugin listing failed - e. g. wrong backup destination or no space left on backup device."), MessageBox.TYPE_INFO, timeout=10)
-			print("[BackupManager] Result", result)
-			print("[BackupManager] Plugin listing failed - e. g. wrong backup destination or no space left on backup device")
+	def Stage2Complete(self, plugins_out):
+		with open("/tmp/ExtraInstalledPlugins", "w") as output:
+			output.write("\n".join(sorted(plugins_out)))
+		self.Stage2Completed = True
+		print("[BackupManager] Listing ExtraInstalledPlugins completed. Plugins found:", (plugins_out or "None"))
 
 	def Stage3(self):
 		# Files for reference only. No longer used by the restore process.
 		# The version check is no longer be necessary since auto-installed packages are no longer listed in the plugins backup.
 		# For more information please consult commit https://github.com/OpenViX/vix-core/commit/53a95067677651a3f2579a1b0d1f70172ccc493b
-		print("[BackupManager] Finding kernel version:", SystemInfo["kernel"])
+		print("[BackupManager] Finding kernel version:", KERNEL)
 		with open("/tmp/backupkernelversion", "w") as output:
-			output.write(SystemInfo["kernel"])
+			output.write(KERNEL)
 		print("[BackupManager] Finding image version:", SystemInfo["imageversion"])
 		with open("/tmp/backupimageversion", "w") as output:
 			output.write(SystemInfo["imageversion"])
@@ -1209,7 +1187,7 @@ class BackupFiles(Screen):
 		elif self.backuptype == self.TYPE_FACTORYRESET:
 			backupType = "-FR-"
 		imageSubBuild = ""
-		if SystemInfo["imagetype"] != "release":
+		if IMAGETYPE != "release":
 			imageSubBuild = ".%s" % SystemInfo["imagedevbuild"]
 		boxname = ""
 		if config.backupmanager.showboxname.value:
