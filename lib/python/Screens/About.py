@@ -1,7 +1,8 @@
 from os import listdir, path as ospath, popen, statvfs
+from platform import libc_ver
 from re import search
 from requests import get
-from sys import version_info
+from sys import version_info, version as pyversion
 from enigma import eTimer, getDesktop, getEnigmaLastCommitDate, getEnigmaLastCommitHash
 from skin import parameters
 from Components.About import getBoxUptime, getCPUArch, getEnigmaUptime, getIfConfig, getIfTransferredData
@@ -13,7 +14,7 @@ from Components.Network import iNetwork
 from Components.NimManager import nimmanager
 from Components.Pixmap import MultiPixmap
 from Components.Sources.StaticText import StaticText
-from Components.SystemInfo import BoxInfo, SystemInfo, CHIPSET, DISPLAYBRAND, KERNEL, MACHINENAME, MODEL, SOC_BRAND
+from Components.SystemInfo import BoxInfo, SystemInfo, CHIPSET, DISPLAYBRAND, KERNEL, MACHINENAME, MODEL, SOC_BRAND, UBIMB
 from Components.UserInstalledPackages import UserInstalledPackages
 from Screens.GitCommitInfo import CommitInfo
 from Screens.Screen import Screen, ScreenSummary
@@ -23,6 +24,8 @@ from Tools.Directories import fileHas, fileReadLines, isPluginInstalled
 from Tools.Hex2strColor import Hex2strColor
 from Tools.Multiboot import GetCurrentImageMode
 from Tools.StbHardware import getFPVersion
+
+from twisted.internet import threads
 
 
 def getFlashDateString():
@@ -52,13 +55,8 @@ def _formatDate(Date):
 	return config.usage.date.dateFormatAbout.value % {"year": Date[0:4], "month": Date[4:6], "day": Date[6:8]}
 
 
-def getFFmpegVersionString():
-	lines = fileReadLines("/var/lib/opkg/info/ffmpeg.control")
-	if lines:
-		for line in lines:
-			if line[0:8] == "Version:":
-				return line[9:].split("+")[0]
-	return _("Not Installed")
+def getVersionFromOpkg(fileName):
+	return next((line[9:].split("+")[0] for line in (fileReadLines(f"/var/lib/opkg/info/{fileName}.control") or []) if line.startswith("Version:")), _("Not Installed"))
 
 
 def getGStreamerVersionString():
@@ -68,6 +66,22 @@ def getGStreamerVersionString():
 		return gst[1].split("+")[0].split("-")[0].replace("\n", "")
 	except:
 		return _("unknown")
+
+
+def getGlibcVersion():
+	try:
+		return libc_ver()[1]
+	except:
+		print("[About] Get glibc version failed.")
+	return _("Unknown")
+
+
+def getGccVersion():
+	try:
+		return pyversion.split("[GCC ")[1].replace("]", "")
+	except:
+		print("[About] Get gcc version failed.")
+	return _("Unknown")
 
 
 def getsystemTemperature():
@@ -217,13 +231,6 @@ class About(AboutBase):
 		elif "BootDevice" in SystemInfo and SystemInfo["BootDevice"]:
 			AboutText += _("Boot Device:\t%s%s\n") % (VuPlustxt, SystemInfo["BootDevice"])
 
-		if SystemInfo["HasH9SD"]:
-			if "rootfstype=ext4" in open("/sys/firmware/devicetree/base/chosen/bootargs", "r").read():
-				part = "        - SD card in use for Image root \n"
-			else:
-				part = "        - eMMC slot in use for Image root \n"
-			AboutText += _("%s") % part
-
 		if SystemInfo["canMultiBoot"]:
 			slot = image = SystemInfo["MultiBootSlot"]
 			if SystemInfo["HasHiSi"] and "sda" in SystemInfo["canMultiBoot"][slot]["root"]:
@@ -246,8 +253,16 @@ class About(AboutBase):
 
 		AboutText += _("Drivers:\t%s\n") % driversDate()
 		AboutText += _("Kernel:\t%s\n") % KERNEL
+		AboutText += _("Samba:\t%s\n") % getVersionFromOpkg("samba")
 		AboutText += _("GStreamer:\t%s\n") % getGStreamerVersionString().replace("GStreamer ", "")
-		AboutText += _("FFmpeg version:\t%s\n") % getFFmpegVersionString()
+		AboutText += _("GCC version:\t%s\n") % getGccVersion()
+		AboutText += _("Glibc version:\t%s\n") % getGlibcVersion()
+		AboutText += _("FFmpeg version:\t%s\n") % getVersionFromOpkg("ffmpeg")
+		AboutText += _("OpenSSL version:\t%s\n") % getVersionFromOpkg("openssl")
+		if BoxInfo.getItem("rust"):
+			AboutText += _("Rust version:\t%s\n") % str(BoxInfo.getItem("rust"))
+		if BoxInfo.getItem("upx"):
+			AboutText += _("UPX version:\t%s\n") % str(BoxInfo.getItem("upx"))
 		if isPluginInstalled("ServiceApp") and config.plugins.serviceapp.servicemp3.replace.value:
 			AboutText += _("4097 iptv player:\t%s\n") % config.plugins.serviceapp.servicemp3.player.value
 		else:
@@ -383,9 +398,13 @@ class Devices(AboutBase):
 
 				if mountdict:
 					for device in mountdict:
+						if UBIMB and SystemInfo["BootDevice"][0:3] in device:  # don,t show boot device
+							continue
 						if hddKey1 in device:
 							break  # use break here to escape the loop and NOT run its else clause
 					else:  # device not mounted
+						if UBIMB and SystemInfo["BootDevice"][0:3] in device:  # don,t show boot device
+							continue
 						devicelist.append("%s" % hdd)
 						continue  # continues the outer loop so code below is skipped
 					# device is mounted so add device partition(s) attributes
@@ -500,8 +519,6 @@ class SystemNetworkInfo(AboutBase):
 			self.resetList()
 			self.onClose.append(self.cleanup)
 		self.onLayoutFinish.append(self.updateStatusbar)
-		self.timer = eTimer()
-		self.timer.callback.append(self.getWanIP)
 
 	def createscreen(self):
 		self.AboutText = ""
@@ -665,7 +682,7 @@ class SystemNetworkInfo(AboutBase):
 			iNetwork.getLinkState(self.iface, self.dataAvail)
 			self["devicepic"].setPixmapNum(0)
 		self["devicepic"].show()
-		self.timer.start(10, 1)
+		threads.deferToThread(self.getWanIP)
 
 	def getWanIP(self):
 		try:
