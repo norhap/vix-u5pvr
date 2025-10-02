@@ -186,7 +186,7 @@ class EventName(Converter):
 
 	FORMAT_STRING = 34
 
-	RAWRATINGANDCOUNTRY = 40
+	RATINGTEXTANDCOLOR = 40
 
 	KEYWORDS = {
 		# Arguments...
@@ -215,7 +215,7 @@ class EventName(Converter):
 		"ThirdNameOnly": ("type", THIRD_NAME2),
 		"ThirdDescription": ("type", THIRD_DESCRIPTION),
 		"RawRating": ("type", RAWRATING),
-		"RawRatingAndCountry": ("type", RAWRATINGANDCOUNTRY),
+		"RatingTextAndColor": ("type", RATINGTEXTANDCOLOR),
 		"RatingCountry": ("type", RATINGCOUNTRY),
 		"RatingIcon": ("type", RATINGICON),
 		# Options...
@@ -373,7 +373,7 @@ class EventName(Converter):
 				if running_status in (6, 7):
 					return _("Reserved for future use")
 				return _("Undefined")
-		elif self.type in (self.NAME_NEXT, self.NAME_NEXT2) or (self.type >= self.NEXT_DESCRIPTION and not self.type == self.FORMAT_STRING and not self.type == self.RAWRATING and not self.type == self.RAWRATINGANDCOUNTRY):
+		elif self.type in (self.NAME_NEXT, self.NAME_NEXT2) or (self.type >= self.NEXT_DESCRIPTION and not self.type == self.FORMAT_STRING and not self.type == self.RAWRATING and not self.type == self.RATINGTEXTANDCOLOR):
 			try:
 				reference = self.source.service
 				info = reference and self.source.info
@@ -405,10 +405,21 @@ class EventName(Converter):
 			rating = event.getParentalData()
 			if rating:
 				return rating.getCountryCode().upper()
-		elif self.type == self.RAWRATINGANDCOUNTRY:
+		elif self.type == self.RATINGTEXTANDCOLOR:
 			rating = event.getParentalData()
 			if rating:
-				return "%d;%s" % (rating.getRating(), rating.getCountryCode().upper())
+				age = rating.getRating()
+				country = rating.getCountryCode().upper()
+				if country in opentv_countries:
+					country = opentv_countries[country]
+				if country in countries:
+					c = countries[country]
+				else:
+					c = countries["ETSI"]
+				rating = c[self.RATNORMAL].get(age, c[self.RATDEFAULT](age))
+				ageText = rating[self.RATSHORT].strip().replace("+", "")
+				color = rating[self.RATCOLOR]
+				return "%s;%s" % (ageText, hex(color))
 		elif self.type == self.FORMAT_STRING:
 			begin = event.getBeginTime()
 			end = begin + event.getDuration()
