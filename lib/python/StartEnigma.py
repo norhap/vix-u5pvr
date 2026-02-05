@@ -351,10 +351,10 @@ def runScreenTest():
 	Tools.Trashcan.init(session)
 	if not VuRecovery:
 		CiHandler.setSession(session)
-
-	profile("Init:Components.AVSwitch.VideoJudderDriverFixTask")
-	from Components.AVSwitch import startVideoJudderDriverFixTask
-	startVideoJudderDriverFixTask()
+	if SystemInfo["needsVideoJudderDriverFix"]:
+		profile("Init:Components.AVSwitch.VideoJudderDriverFixTask")
+		from Components.AVSwitch import startVideoJudderDriverFixTask
+		startVideoJudderDriverFixTask()
 
 	screensToRun = [p.fnc for p in plugins.getPlugins(PluginDescriptor.WHERE_WIZARD)]
 	profile("wizards")
@@ -471,6 +471,7 @@ profile("PYTHON_START")
 from Components.SystemInfo import SystemInfo  # noqa: E402  don't move this import
 
 print("[StartEnigma]  Starting Python Level Initialisation.")
+print(f"[StartEnigma]  Receiver -> {SystemInfo['displaybrand']} {SystemInfo['displaymodel']}")
 print(f"[StartEnigma]  Image Type -> {SystemInfo['imagetype']}")
 print(f"[StartEnigma]  Image Version -> {SystemInfo['imageversion']}")
 print(f"[StartEnigma]  Image Build -> {SystemInfo['imagebuild']}")

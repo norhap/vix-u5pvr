@@ -3,7 +3,7 @@ from platform import libc_ver
 from re import search
 from requests import get
 from sys import version_info, version as pyversion
-from enigma import eTimer, getDesktop, getEnigmaLastCommitDate, getEnigmaLastCommitHash
+from enigma import eTimer, getDesktop, getEnigmaLastCommitDate, getEnigmaLastCommitHash, eDVBCSAEngine
 from skin import parameters
 from Components.About import getBoxUptime, getCPUArch, getEnigmaUptime, getIfConfig, getIfTransferredData
 from Components.ActionMap import ActionMap
@@ -228,9 +228,10 @@ class About(AboutBase):
 		VuPlustxt = _("Vu+ Multiboot") + " - " if SystemInfo["HasKexecMultiboot"] else ""
 		if fileHas("/proc/cmdline", "rootsubdir=linuxrootfs0"):
 			AboutText += _("Boot Device: \tRecovery Slot\n")
-		elif "BootDevice" in SystemInfo and SystemInfo["BootDevice"]:
-			AboutText += _("Boot Device:\t%s%s\n") % (VuPlustxt, SystemInfo["BootDevice"])
-
+		else:
+			bootDevice = BoxInfo.getItem("mtdbootfs") if not SystemInfo["canMultiBoot"] else SystemInfo["BootDevice"]
+			if bootDevice:
+				AboutText += _("Boot Device:\t%s%s\n") % (VuPlustxt, bootDevice)
 		if SystemInfo["canMultiBoot"]:
 			slot = image = SystemInfo["MultiBootSlot"]
 			if SystemInfo["HasHiSi"] and "sda" in SystemInfo["canMultiBoot"][slot]["root"]:
@@ -258,6 +259,8 @@ class About(AboutBase):
 		AboutText += _("GCC version:\t%s\n") % getGccVersion()
 		AboutText += _("Glibc version:\t%s\n") % getGlibcVersion()
 		AboutText += _("FFmpeg version:\t%s\n") % getVersionFromOpkg("ffmpeg")
+		if eDVBCSAEngine.isAvailable():
+			AboutText += _("Software descrambling version:\t%s %s\n") % (eDVBCSAEngine.getLibraryName(), eDVBCSAEngine.getLibraryVersion())
 		AboutText += _("OpenSSL version:\t%s\n") % getVersionFromOpkg("openssl")
 		if BoxInfo.getItem("rust"):
 			AboutText += _("Rust version:\t%s\n") % str(BoxInfo.getItem("rust"))
@@ -380,8 +383,8 @@ class Devices(AboutBase):
 			print("[About] hddlist = %s" % (hddlist))
 			for i in range(len(hddlist)):
 				hdd = hddlist[i][0]
-				if MODEL in ("dm900", "dm920"):  # dm9x0:mmcblk0p3 multiboot root & storage
-					hdd = hdd.replace("/dev/mmcblk0", "/dev/mmcblk0p3")
+				if MODEL in ("dm900", "dm920"):  # dm9x0:mmcblk0p3 multiboot root & storage SD card mmcblk1p1
+					hdd = hdd.replace("/dev/mmcblk0", "/dev/mmcblk0p3").replace("/dev/mmcblk1", "/dev/mmcblk1p1")
 				elif SystemInfo["HasH9SD"]:
 					hdd = hdd.replace("/dev/mmcblk0", "/dev/mmcblk0p1")
 				elif SystemInfo["HasSDnomount"]:

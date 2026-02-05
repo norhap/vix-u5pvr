@@ -58,20 +58,6 @@ int eMPEGStreamInformation::load(const char *filename)
 	//eDebug("[eMPEGStreamInformation] {%d} load(%s)", gettid(), filename);
 	close();
 	std::string s_filename(filename);
-	int tmp_fd = -1;
-	tmp_fd = ::open("/dev/null", O_RDONLY | O_CLOEXEC);
-	/* eDebug("[pvrparse][MPEGStream]  Opened tmp_fd: %d", tmp_fd); */
-	if (tmp_fd == 0)
-	{
-		::close(tmp_fd);
-		tmp_fd = -1;	
-		fd0lock = ::open("/dev/null", O_RDONLY | O_CLOEXEC);
-		/* eDebug("[pvrparse][MPEGStream] opening null fd returned: %d", fd0lock); */
-	}
-	if (tmp_fd != -1)
-	{
-		::close(tmp_fd);
-	}
 	m_structure_read_fd = ::open((s_filename + ".sc").c_str(), O_RDONLY | O_CLOEXEC);
 	m_access_points.clear();
 	m_pts_to_offset.clear();
@@ -649,20 +635,6 @@ eMPEGStreamInformationWriter::~eMPEGStreamInformationWriter()
 int eMPEGStreamInformationWriter::startSave(const std::string& filename)
 {
 	m_filename = filename;
-	int tmp_fd = -1;
-	tmp_fd = ::open("/dev/null", O_RDONLY | O_CLOEXEC);
-	/* eDebug("[pvrparse][MPEGStream]  Opened tmp_fd: %d", tmp_fd); */
-	if (tmp_fd == 0)
-	{
-		::close(tmp_fd);
-		tmp_fd = -1;	
-		fd0lock = ::open("/dev/null", O_RDONLY | O_CLOEXEC);
-		/* eDebug("[pvrparse][MPEGStream] opening null fd returned: %d", fd0lock); */
-	}
-	if (tmp_fd != -1)
-	{
-		::close(tmp_fd);
-	}
 	m_structure_write_fd = ::open((m_filename + ".sc").c_str(), O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
 	m_buffer_filled = 0;
 	m_write_buffer = NULL;
@@ -950,7 +922,7 @@ int eMPEGStreamParserTS::processPacket(const unsigned char *pkt, off_t offset)
 			//}
 			//eDebugNoNewLine("\n");
 
-			return 0;
+			return -2;
 		}
 
 		if (pkt[7] & 0x80) // PTS present?
@@ -1109,7 +1081,7 @@ inline int eMPEGStreamParserTS::wantPacket(const unsigned char *pkt) const
 	return m_streamtype == eDVBVideo::MPEG2; /* we need all packets for MPEG2, but only PUSI packets for H.264 */
 }
 
-void eMPEGStreamParserTS::parseData(off_t offset, const void *data, unsigned int len)
+int eMPEGStreamParserTS::parseData(off_t offset, const void *data, unsigned int len)
 {
 	const unsigned char *packet = (const unsigned char*)data;
 	const unsigned char *packet_start = packet;
@@ -1185,7 +1157,9 @@ void eMPEGStreamParserTS::parseData(off_t offset, const void *data, unsigned int
 
 			if (m_pktptr == m_packetsize)
 			{
-				m_need_next_packet = processPacket(m_pkt, offset + (packet - packet_start));
+				int res = processPacket(m_pkt, offset + (packet - packet_start));
+				if (res != 0) return res;
+				m_need_next_packet = res;
 				m_pktptr = 0;
 			}
 		} else if (len >= (unsigned int)m_header_offset + 4)  /* if we have a full header... */
@@ -1194,7 +1168,9 @@ void eMPEGStreamParserTS::parseData(off_t offset, const void *data, unsigned int
 			{
 				if (len >= (unsigned int)m_packetsize)          /* packet complete? */
 				{
-					m_need_next_packet = processPacket(packet, offset + (packet - packet_start)); /* process it now. */
+					int res = processPacket(packet, offset + (packet - packet_start));
+					if (res != 0) return res;
+					m_need_next_packet = res;
 				} else
 				{
 					memcpy(m_pkt, packet, len);  /* otherwise queue it up */
