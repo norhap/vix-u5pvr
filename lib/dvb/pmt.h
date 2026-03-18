@@ -165,6 +165,7 @@ public:
 	void free();
 	void addCaHandler();
 	void removeCaHandler();
+	bool isCiConnected();
 	void allocatePVRChannel();
 private:
 	bool m_have_cached_program;

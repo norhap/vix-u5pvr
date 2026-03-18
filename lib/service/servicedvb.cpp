@@ -1079,9 +1079,6 @@ eDVBServicePlay::eDVBServicePlay(const eServiceReference &ref, eDVBService *serv
 	m_soft_decoder_video_info_valid(false),
 	m_nownext_timer(eTimer::create(eApp))
 {
-#ifdef PASSTHROUGH_FIX
-	m_passthrough_fix_timer = eTimer::create(eApp);
-#endif
 //	m_is_streamx = m_is_stream;	// sets to false if looking at fallback url at this point as m_is_stream(ref.path.find("://") is false.
 	eDebug("[servicedvb][eDVBServicePlay] now running: m_is_streamx set by m_is_stream %d", m_is_streamx);
 	eDebug("[servicedvb][eDVBServicePlay] now running: m_is_pvr set to; %d", m_is_pvr);
@@ -1091,9 +1088,6 @@ eDVBServicePlay::eDVBServicePlay(const eServiceReference &ref, eDVBService *serv
 	CONNECT(m_event_handler.m_eit_changed, eDVBServicePlay::gotNewEvent);
 	CONNECT(m_subtitle_sync_timer->timeout, eDVBServicePlay::checkSubtitleTiming);
 	CONNECT(m_nownext_timer->timeout, eDVBServicePlay::updateEpgCacheNowNext);
-#ifdef PASSTHROUGH_FIX
-	CONNECT(m_passthrough_fix_timer->timeout, eDVBServicePlay::forcePassthrough);
-#endif
 }
 
 eDVBServicePlay::~eDVBServicePlay()
@@ -1126,15 +1120,6 @@ eDVBServicePlay::~eDVBServicePlay()
 
 	if (m_subtitle_widget) m_subtitle_widget->destroy();
 }
-
-
-#ifdef PASSTHROUGH_FIX
-void eDVBServicePlay::forcePassthrough()
-{
-	eDebug("[eDVBServicePlay] Setting 'passthrough' to force correct operation");
-	CFile::writeStr("/proc/stb/audio/ac3", "passthrough");
-}
-#endif
 
 void eDVBServicePlay::gotNewEvent(int error)
 {
@@ -1276,7 +1261,7 @@ void eDVBServicePlay::serviceEvent(int event)
 				ePtr<iDVBDemux> demux;
 				if (m_service_handler.getDataDemux(demux) == 0 && demux)
 				{
-					eDebug("[eDVBServicePlay] Starting ECM monitor: PID=%d, CAID=0x%04X", ecm_pid, caid);
+					eDebug("[eDVBServicePlay] Requesting ECM monitor: PID=%d, CAID=0x%04X", ecm_pid, caid);
 					m_csa_session->startECMMonitor(demux, ecm_pid, caid);
 					// Note: If CSA-ALT was cached, session is now active and onSessionActivated() has already been called!
 				}
@@ -2490,18 +2475,6 @@ int eDVBServicePlay::selectAudioStream(int i)
 		return -4;
 	}
 
-#ifdef PASSTHROUGH_FIX
-	if (apidtype == eDVBPMTParser::audioStream::atAC3 || apidtype == eDVBPMTParser::audioStream::atAAC || apidtype == eDVBPMTParser::audioStream::atDDP) {
-		std::string pass = CFile::read("/proc/stb/audio/ac3");
-		if (replace_all(replace_all(pass, "\r", ""), "\n", "") == "passthrough")
-		{
-			int shortAudioDelay = eConfigManager::getConfigIntValue("config.av.passthrough_fix_short", 100);
-			m_passthrough_fix_timer->stop();
-			m_passthrough_fix_timer->start(shortAudioDelay, true);
-		}
-	}
-#endif
-
 	if (position != -1)
 	{
 		ret = seekTo(position);
@@ -2555,28 +2528,7 @@ void eDVBServicePlay::updateAudioCache(int apid, int apidtype)
 	if (!m_dvb_service)
 		return;
 
-	const static struct {
-		int streamType;
-		eDVBService::cacheID cacheTag;
-	} audioMap [] = {
-		{ eDVBAudio::aMPEG,  eDVBService::cMPEGAPID,  },
-		{ eDVBAudio::aAC3,   eDVBService::cAC3PID,    },
-		{ eDVBAudio::aAC4,   eDVBService::cAC4PID,    },
-		{ eDVBAudio::aDDP,   eDVBService::cDDPPID,    },
-		{ eDVBAudio::aAAC,   eDVBService::cAACAPID,   },
-		{ eDVBAudio::aDTS,   eDVBService::cDTSPID,    },
-		{ eDVBAudio::aLPCM,  eDVBService::cLPCMPID,   },
-		{ eDVBAudio::aDTSHD, eDVBService::cDTSHDPID,  },
-		{ eDVBAudio::aAACHE, eDVBService::cAACHEAPID, },
-		{ eDVBAudio::aDRA,   eDVBService::cDRAAPID,   },
-	};
-	static const int nAudioMap = sizeof audioMap / sizeof audioMap[0];
-
-	for(int m = 0; m < nAudioMap; m++)
-	{
-		m_dvb_service->setCacheEntry(audioMap[m].cacheTag, apidtype == audioMap[m].streamType ? apid : -1);
-	}
-
+	m_dvb_service->updateAudioCache(apid, apidtype);
 	eDebug("[eDVBServicePlay] updateAudioCache: pid=%04x type=%d", apid, apidtype);
 }
 
@@ -3533,10 +3485,34 @@ void eDVBServicePlay::updateDecoder(bool sendSeekableStateChanged)
 		if (!sendSeekableStateChanged && (m_decoder->getVideoProgressive() != -1) != wasSeekable)
 			sendSeekableStateChanged = true;
 	}
-
+#ifdef PASSTHROUGH_FIX
+	if (!m_noaudio)
+		forceAudioReset();
+#endif
 	if (sendSeekableStateChanged)
 		m_event((iPlayableService*)this, evSeekableStatusChanged);
 }
+
+#ifdef PASSTHROUGH_FIX
+void eDVBServicePlay::forceAudioReset()
+{
+	if (!eConfigManager::getConfigBoolValue("config.av.passthrough_fix", false))
+		return;
+	// Toggle Bluetooth audio off->on->off to force audio driver reinitialization
+	std::string btaudio = CFile::read("/proc/stb/audio/btaudio");
+	if (!btaudio.empty() && btaudio.find("off") != std::string::npos)
+	{
+		eDebug("[eDVBSoftDecoder] Force audio reset: toggling btaudio on and back off");
+		CFile::writeStr("/proc/stb/audio/btaudio", "on");
+		CFile::writeStr("/proc/stb/audio/btaudio", "off");
+	}
+	if (btaudio.empty())
+	{
+		int currAudioIndex = getCurrentTrack();
+		selectTrack(currAudioIndex);
+	}
+}
+#endif
 
 void eDVBServicePlay::loadCuesheet()
 {
@@ -4193,11 +4169,17 @@ void eDVBServicePlay::setupSpeculativeDescrambling()
 
 	// Create SoftDecoder (will start when session activates)
 	m_soft_decoder = new eDVBSoftDecoder(m_service_handler, m_dvb_service, m_decoder_index);
+	m_soft_decoder->setNoAudio(m_noaudio);
 	m_soft_decoder->setSession(m_csa_session);
 
 	// Connect to SoftDecoder's audio PID selection signal
 	m_soft_decoder->m_audio_pid_selected.connect(
 		sigc::mem_fun(*this, &eDVBServicePlay::onSoftDecoderAudioPidSelected));
+
+	// Suppress SoftCSA activation when CI module handles decryption
+	m_csa_session->shouldSuppressActivation = [this]() {
+		return m_service_handler.isCiConnected();
+	};
 
 	// Connect to session's activated signal for decoder handover
 	m_csa_session->activated.connect(
@@ -4280,12 +4262,13 @@ void eDVBServicePlay::onSessionActivated(bool active)
 
 		eDebug("[eDVBServicePlay] SoftDecoder takeover complete");
 
-		// Notify listeners (skin converters) that service info has changed (IsSoftCSA icon display)
-		m_event((iPlayableService*)this, evUpdatedInfo);
+		// Connect decoder-ready signal: SoftDecoder fires this after decoder PLAY,
+		// when video info is actually queryable. We defer evUpdatedInfo until then
+		// to avoid the skin querying -1 values before the decoder exists.
+		m_soft_decoder->m_decoder_ready.connect(
+			sigc::mem_fun(*this, &eDVBServicePlay::onSoftDecoderReady));
 
-		// Reset video info flag - a second evUpdatedInfo will be sent when first video event arrives
-		// This is needed because some skins query video resolution only on evUpdatedInfo
-		// and the decoder hasn't analyzed any frames yet at this point
+		// Reset video info flag - will be set on first video size event from decoder
 		m_soft_decoder_video_info_valid = false;
 	}
 	else if (!active && m_soft_decoder)
@@ -4298,6 +4281,12 @@ void eDVBServicePlay::onSessionActivated(bool active)
 		// Re-setup hardware decoder
 		updateDecoder();
 	}
+}
+
+void eDVBServicePlay::onSoftDecoderReady()
+{
+	eDebug("[eDVBServicePlay] SoftDecoder decoder ready - notifying skin");
+	m_event((iPlayableService*)this, evUpdatedInfo);
 }
 
 void eDVBServicePlay::onSoftDecoderAudioPidSelected(int pid)

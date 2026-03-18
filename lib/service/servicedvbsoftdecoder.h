@@ -44,6 +44,9 @@ public:
 	int start();
 	void stop();
 
+	// Suppress audio output (PIP mode)
+	void setNoAudio(bool noaudio) { m_noaudio = noaudio; }
+
 	// Status
 	bool isRunning() const { return m_running; }
 
@@ -89,6 +92,9 @@ public:
 	// Audio track selection signal (notifies parent when SoftDecoder selects audio)
 	sigc::signal<void(int)> m_audio_pid_selected;
 
+	// Decoder ready signal (fired after decoder PLAY, video info now queryable)
+	sigc::signal<void()> m_decoder_ready;
+
 private:
 	eDVBServicePMTHandler& m_source_handler;
 	eDVBServicePMTHandler m_pvr_handler;  // Separate PVR handler for decode demux
@@ -107,6 +113,7 @@ private:
 	int m_dvr_fd;
 	bool m_running;
 	bool m_stopping;
+	bool m_noaudio;  // When true, suppress audio (PIP mode)
 	std::set<int> m_pids_active;
 
 	// CW waiting: Timer-based decoder start
@@ -114,18 +121,25 @@ private:
 	sigc::connection m_first_cw_conn;
 	bool m_decoder_started;
 
+	// Pre-buffer: delay decoder start to let DVR data accumulate
+	ePtr<eTimer> m_buffer_timer;
+	void onBufferTimerExpired();
+
 	ePtr<eTimer> m_health_timer;
 	pts_t m_last_pts;
 	int m_stall_count;
+	int m_recovery_attempts;
 	bool m_stream_stalled;
 	bool m_paused;
+	int64_t m_last_health_check;
 	void streamHealthCheck();
 
 	// Event Handlers
 	void onSessionActivated(bool active);
 	void onFirstCwReceived();
 	void onWaitForFirstDataTimeout();
-	void startDecoderWithDvrWait();
+	void startDecoderOrBuffer();
+	void startDecoder();
 	void serviceEventSource(int event);
 	void recordEvent(int event);
 	void videoEvent(struct iTSMPEGDecoder::videoEvent event);

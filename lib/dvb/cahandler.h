@@ -8,6 +8,7 @@
 #include <lib/network/serversocket.h>
 #include <dvbsi++/program_map_section.h>
 #include <lib/base/eptrlist.h>
+#include <memory>
 #include <lib/dvb/idvb.h>
 #include <lib/dvb/esection.h>
 
@@ -97,18 +98,21 @@ protected:
 	eDVBCAHandler *parent;
 	void connectionLost();
 	void dataAvailable();
-	// OSCam Protocol 3 handlers
-	void sendClientInfo();
+	// Softcam Protocol 3 handlers
 	bool processCaSetDescrPacket();
 	bool processServerInfoPacket();
 	bool processEcmInfoPacket();
 public:
 	ePMTClient(eDVBCAHandler *handler, int socket);
+	~ePMTClient() { delete[] receivedData; }
+	void sendClientInfo();
 	int writeCAPMTObject(const char* capmt, int len);
+	bool isProtocol3() const { return m_serverInfoReceived; }
 };
 
 class eDVBCAService: public eUnixDomainSocket
 {
+	friend class eDVBCAHandler;
 	eServiceReferenceDVB m_service;
 	uint8_t m_used_demux[32];
 	uint8_t m_adapter;
@@ -119,6 +123,7 @@ class eDVBCAService: public eUnixDomainSocket
 	int m_version;
 	unsigned char m_capmt[2048];
 	ePtr<eTimer> m_retryTimer;
+	bool m_force_cw_send; // force softcam CW resend on next processPMTForService()
 public:
 	eDVBCAService(const eServiceReferenceDVB &service, uint32_t id);
 	~eDVBCAService();
@@ -136,8 +141,8 @@ public:
 	uint32_t getServiceTypeMask() const;
 	void resetBuildHash() { m_prev_build_hash = 0; m_crc32 = 0; }
 	void sendCAPMT();
-	int writeCAPMTObject(eSocket *socket, int list_management = -1);
-	int writeCAPMTObject(ePMTClient *client, int list_management = -1);
+	int writeCAPMTObject(eSocket *socket, int list_management = -1, int cmd_id = -1);
+	int writeCAPMTObject(ePMTClient *client, int list_management = -1, int cmd_id = -1);
 	int buildCAPMT(eTable<ProgramMapSection> *ptr);
 	int buildCAPMT(ePtr<eDVBService> &dvbservice);
 	void connectionLost();
@@ -155,7 +160,7 @@ public:
 	iCryptoInfo();
 	~iCryptoInfo();
 #endif
-	sigc::signal<void(eServiceReferenceDVB, int, const char*, uint16_t)> receivedCw;  // service, parity, cw, caid
+	sigc::signal<void(eServiceReferenceDVB, int, const char*, uint16_t, uint32_t)> receivedCw;  // service, parity, cw, caid, serviceId
 };
 SWIG_TEMPLATE_TYPEDEF(ePtr<iCryptoInfo>, iCryptoInfoPtr);
 
@@ -172,8 +177,11 @@ DECLARE_REF(eDVBCAHandler);
 	ePtrList<ePMTClient> clients;
 	ePtr<eTimer> serviceLeft;
 	std::map<eServiceReferenceDVB, ePtr<eTable<ProgramMapSection> > > pmtCache;
-	std::map<uint32_t, uint16_t> m_service_caid;  // serviceId -> CAID (from OSCam ECM_INFO)
+	std::map<uint32_t, uint16_t> m_service_caid;  // serviceId -> CAID (from softcam ECM_INFO)
 	uint32_t serviceIdCounter;
+	bool m_protocol3_established;  // SERVER_INFO received from at least one client
+
+	std::unique_ptr<eDVBCAService> m_pending_sr_service; // deferred CMD_NOT_SELECTED for SR channel change
 
 	void newConnection(int socket);
 	void processPMTForService(eDVBCAService *service, eTable<ProgramMapSection> *ptr);

@@ -1,6 +1,7 @@
 #include <lib/dvb/csasession.h>
 #include <lib/dvb/csaengine.h>
 #include <lib/dvb/cahandler.h>
+#include <lib/dvb/cwhandler.h>
 #include <lib/base/eerror.h>
 
 #ifdef DREAMNEXTGEN
@@ -11,12 +12,14 @@ DEFINE_REF(eDVBCSASession);
 
 static const uint8_t DEFAULT_ECM_MODE = 0x04;
 
-// Static cache: Service -> CSA-ALT + ecm_mode; survives session changes for faster channel switching
-// Key: (namespace << 48) | (onid << 32) | (tsid << 16) | sid
+// Static cache: Service -> CSA-ALT + ecm_mode + serviceId; survives session changes for faster channel switching
+// Key: (onid << 32) | (tsid << 16) | sid
 struct ServiceCsaInfo {
 	bool is_csa_alt;      // true if CSA-ALT detected
 	uint8_t ecm_mode;     // Lower nibble of ECM[len-1]
 	bool valid;           // true if info has been detected
+	uint32_t serviceId;   // Softcam's internal service ID (for CWHandler pre-registration)
+	bool serviceId_valid; // true if serviceId has been seen
 };
 static std::map<uint64_t, ServiceCsaInfo> s_csa_cache;
 
@@ -65,13 +68,25 @@ eDVBCSASession::eDVBCSASession(const eServiceReferenceDVB& ref)
 	, m_ecm_mode_detected(false)
 	, m_ecm_analyzed(false)
 	, m_csa_alt(false)
+	, m_cw_service_id(0)
+	, m_cw_alt_service_id(0)
+	, m_cw_handler_registered(false)
+	, m_first_cw_signaled(false)
+	, m_pending_cw{}
 {
-	eDebug("[CSASession] Created for service %s", ref.toString().c_str());
+	eDebug("[eDVBCSASession] Created for service %s", ref.toString().c_str());
 }
 
 eDVBCSASession::~eDVBCSASession()
 {
-	eDebug("[CSASession] Destroyed for service %s", m_service_ref.toString().c_str());
+	eDebug("[eDVBCSASession] Destroyed for service %s", m_service_ref.toString().c_str());
+
+	if (m_cw_handler_registered)
+	{
+		eDVBCWHandler::getInstance()->unregisterEngine(m_cw_service_id, m_engine);
+		if (m_cw_alt_service_id)
+			eDVBCWHandler::getInstance()->unregisterEngine(m_cw_alt_service_id, m_engine);
+	}
 
 	stopECMMonitor();
 
@@ -87,7 +102,7 @@ bool eDVBCSASession::init()
 	m_engine = new eDVBCSAEngine();
 	if (!m_engine->init())
 	{
-		eWarning("[CSASession] Failed to initialize CSA engine");
+		eWarning("[eDVBCSASession] Failed to initialize CSA engine");
 		m_engine = nullptr;
 		return false;
 	}
@@ -96,13 +111,13 @@ bool eDVBCSASession::init()
 	eDVBCAHandler* ca = eDVBCAHandler::getInstance();
 	if (!ca)
 	{
-		eWarning("[CSASession] eDVBCAHandler not available");
+		eWarning("[eDVBCSASession] eDVBCAHandler not available");
 		return false;
 	}
 
 	CONNECT(ca->receivedCw, eDVBCSASession::onCwReceived);
 
-	eDebug("[CSASession] Initialized - CSA-ALT detection via ECM analysis");
+	eDebug("[eDVBCSASession] Initialized - CSA-ALT detection via ECM analysis");
 	return true;
 }
 
@@ -124,27 +139,37 @@ void eDVBCSASession::startECMMonitor(iDVBDemux *demux, uint16_t ecm_pid, uint16_
 	if (cache_it != s_csa_cache.end() && cache_it->second.valid)
 	{
 		const ServiceCsaInfo& info = cache_it->second;
-		eDebug("[CSASession] ECM Monitor: Found cached info - CSA-ALT=%d, ecm_mode=0x%02X",
+		eDebug("[eDVBCSASession] ECM Monitor: Found cached info - CSA-ALT=%d, ecm_mode=0x%02X",
 			info.is_csa_alt, info.ecm_mode);
 
 		// Pre-load ecm_mode from cache
 		m_ecm_mode = info.ecm_mode;
 		m_ecm_mode_detected = true;
 
+		m_ecm_analyzed = true;
+		m_csa_alt = info.is_csa_alt;
+
 		if (info.is_csa_alt && !m_active)
 		{
-			eDebug("[CSASession] ECM Monitor: Activating from cache (CSA-ALT)");
-			m_ecm_analyzed = true;
-			m_csa_alt = true;
-			setActive(true);
+			if (shouldSuppressActivation && shouldSuppressActivation())
+			{
+				eDebug("[eDVBCSASession] ECM Monitor: CSA-ALT cached but activation suppressed (CI module)");
+			}
+			else
+			{
+				eDebug("[eDVBCSASession] ECM Monitor: Activating from cache (CSA-ALT)");
+				setActive(true);
+			}
 		}
+
+		return;
 	}
 
 	// Create section reader
 	ePtr<iDVBSectionReader> reader;
 	if (demux->createSectionReader(eApp, reader) != 0 || !reader)
 	{
-		eWarning("[CSASession] ECM Monitor: Failed to create section reader");
+		eWarning("[eDVBCSASession] ECM Monitor: Failed to create section reader");
 		return;
 	}
 
@@ -163,12 +188,12 @@ void eDVBCSASession::startECMMonitor(iDVBDemux *demux, uint16_t ecm_pid, uint16_
 
 	if (m_ecm_reader->start(mask) != 0)
 	{
-		eWarning("[CSASession] ECM Monitor: Failed to start filter on PID %d", ecm_pid);
+		eWarning("[eDVBCSASession] ECM Monitor: Failed to start filter on PID %d", ecm_pid);
 		m_ecm_reader = nullptr;
 		return;
 	}
 
-	eDebug("[CSASession] ECM Monitor started on PID %d", ecm_pid);
+	eDebug("[eDVBCSASession] ECM Monitor started on PID %d", ecm_pid);
 }
 
 void eDVBCSASession::stopECMMonitor()
@@ -177,7 +202,7 @@ void eDVBCSASession::stopECMMonitor()
 	{
 		m_ecm_reader->stop();
 		m_ecm_reader = nullptr;
-		eDebug("[CSASession] ECM Monitor stopped");
+		eDebug("[eDVBCSASession] ECM Monitor stopped");
 	}
 	m_ecm_conn = nullptr;
 }
@@ -212,28 +237,40 @@ void eDVBCSASession::ecmDataReceived(const uint8_t *data)
 	{
 		bool is_csa_alt = detect_csa_alt_from_ecm(data, m_caid);
 
-		eDebug("[CSASession] ECM received (PMT): caid=0x%04X, ecm[2]=0x%02X, ecm[4]=0x%02X, ecm_mode=0x%02X, CSA-ALT=%d",
+		eDebug("[eDVBCSASession] ECM received (PMT): caid=0x%04X, ecm[2]=0x%02X, ecm[4]=0x%02X, ecm_mode=0x%02X, CSA-ALT=%d",
 			m_caid, data[2], data[4], new_ecm_mode, is_csa_alt);
 
-		// Update unified cache
+		// Update unified cache (preserve serviceId if already known)
 		uint64_t svc_key = makeServiceKey(m_service_ref);
-		s_csa_cache[svc_key] = {is_csa_alt, new_ecm_mode, true};
+		auto& cached = s_csa_cache[svc_key];
+		cached.is_csa_alt = is_csa_alt;
+		cached.ecm_mode = new_ecm_mode;
+		cached.valid = true;
 
 		m_ecm_analyzed = true;
 		m_csa_alt = is_csa_alt;
 
 		if (is_csa_alt)
 		{
-			eDebug("[CSASession] CSA-ALT detected from ECM! Activating software descrambling");
+			eDebug("[eDVBCSASession] CSA-ALT detected from ECM! Activating software descrambling");
 			if (!m_active)
 			{
-				setActive(true);
+				if (shouldSuppressActivation && shouldSuppressActivation())
+				{
+					eDebug("[eDVBCSASession] Activation suppressed (CI module handles decryption)");
+				}
+				else
+				{
+					setActive(true);
+				}
 			}
 		}
 		else
 		{
-			eDebug("[CSASession] ECM analyzed: Not CSA-ALT, hardware descrambling will be used");
+			eDebug("[eDVBCSASession] ECM analyzed: Not CSA-ALT, hardware descrambling will be used");
 		}
+
+		stopECMMonitor();
 	}
 }
 
@@ -253,17 +290,54 @@ void eDVBCSASession::setActive(bool active)
 
 	if (m_active)
 	{
-		eDebug("[CSASession] ACTIVATED - CSA-ALT detected, SW-Descrambling active");
+		eDebug("[eDVBCSASession] ACTIVATED - CSA-ALT detected, SW-Descrambling active");
 #ifdef DREAMNEXTGEN
 		eAlsaOutput::setSoftDecoderActive(1);
 #endif
+		// Pre-register engine at CWHandler using cached serviceId.
+		// This closes the CW gap during PiP swap: when the old session is
+		// destroyed (unregistering its engine), the new session's engine is
+		// already registered and receives CWs without interruption.
+		if (!m_cw_handler_registered && m_engine)
+		{
+			uint64_t svc_key = makeServiceKey(m_service_ref);
+			auto cache_it = s_csa_cache.find(svc_key);
+			if (cache_it != s_csa_cache.end() && cache_it->second.serviceId_valid)
+			{
+				m_cw_service_id = cache_it->second.serviceId;
+				eDVBCWHandler::getInstance()->registerEngine(m_cw_service_id, m_engine, m_ecm_mode);
+				m_cw_handler_registered = true;
+				eDebug("[eDVBCSASession] Pre-registered engine at CWHandler (cached serviceId=%u)", m_cw_service_id);
+			}
+		}
+
+		// Replay buffered CW that arrived before activation
+		if (m_pending_cw.valid)
+		{
+			eDebug("[eDVBCSASession] Replaying buffered CW: parity=%d", m_pending_cw.parity);
+			onCwReceived(m_service_ref, m_pending_cw.parity, m_pending_cw.cw,
+				m_pending_cw.caid, m_pending_cw.serviceId);
+			m_pending_cw.valid = false;
+		}
 	}
 	else
 	{
-		eDebug("[CSASession] DEACTIVATED - HW-Descrambling (passthrough)");
+		eDebug("[eDVBCSASession] DEACTIVATED - HW-Descrambling (passthrough)");
 #ifdef DREAMNEXTGEN
 		eAlsaOutput::setSoftDecoderActive(0);
 #endif
+		if (m_cw_handler_registered)
+		{
+			eDVBCWHandler::getInstance()->unregisterEngine(m_cw_service_id, m_engine);
+			if (m_cw_alt_service_id)
+			{
+				eDVBCWHandler::getInstance()->unregisterEngine(m_cw_alt_service_id, m_engine);
+				m_cw_alt_service_id = 0;
+			}
+			m_cw_handler_registered = false;
+		}
+		m_first_cw_signaled = false;
+		m_pending_cw.valid = false;
 		if (m_engine)
 			m_engine->clearKeys();
 		// Reset ECM analysis state
@@ -277,23 +351,32 @@ void eDVBCSASession::setActive(bool active)
 	activated(m_active);
 }
 
-void eDVBCSASession::onCwReceived(eServiceReferenceDVB ref, int parity, const char* cw, uint16_t caid)
+void eDVBCSASession::onCwReceived(eServiceReferenceDVB ref, int parity, const char* cw, uint16_t caid, uint32_t serviceId)
 {
 	// Only for our service
 	if (!matchesService(ref))
 		return;
 
-	eDebug("[CSASession] onCwReceived: parity=%d for service %s", parity, ref.toString().c_str());
+	if (!m_cw_handler_registered)
+		eDebug("[eDVBCSASession] onCwReceived: parity=%d for service %s", parity, ref.toString().c_str());
 
-	// Only process CWs when active
+	// Buffer CW if session not yet active (activation pending on ECM analysis)
 	if (!m_active)
+	{
+		if (cw)
+		{
+			m_pending_cw.parity = parity;
+			memcpy(m_pending_cw.cw, cw, 8);
+			m_pending_cw.caid = caid;
+			m_pending_cw.serviceId = serviceId;
+			m_pending_cw.valid = true;
+			eDebug("[eDVBCSASession] CW buffered (session not yet active): parity=%d", parity);
+		}
 		return;
+	}
 
 	if (!cw || !m_engine)
 		return;
-
-	// Check if this is the first CW (for signaling)
-	bool had_any_key = m_engine->hasAnyKey();
 
 	// Get ecm_mode: prefer detected, then cached, then default
 	uint8_t ecm_mode;
@@ -318,20 +401,64 @@ void eDVBCSASession::onCwReceived(eServiceReferenceDVB ref, int parity, const ch
 			ecm_mode = DEFAULT_ECM_MODE;
 		}
 	}
-	eDebug("[CSASession] ECM Mode 0x%02X (%s, tail: %02X %02X %02X %02X)",
-		ecm_mode, source, m_ecm_tail[0], m_ecm_tail[1], m_ecm_tail[2], m_ecm_tail[3]);
-	const uint8_t* cw_bytes = (const uint8_t*)cw;
-	m_engine->setKey(parity, ecm_mode, cw_bytes);
-	char caid_str[20] = "";
-	if (caid != 0)
-		snprintf(caid_str, sizeof(caid_str), "caid=0x%04X, ", caid);
-	eDebug("[CSASession] CW set: %sparity=%d, hasEven=%d, hasOdd=%d, CW=%02X",
-		caid_str, parity, m_engine->hasEvenKey(), m_engine->hasOddKey(), cw_bytes[0]);
 
-	// If this is the first CW, signal to listeners
-	if (!had_any_key && m_engine->hasAnyKey())
+	// Register/update eDVBCWHandler - it handles setKey() directly from its thread
+	if (!m_cw_handler_registered)
 	{
-		eDebug("[CSASession] First CW received - signaling");
+		m_cw_service_id = serviceId;
+		eDVBCWHandler::getInstance()->registerEngine(serviceId, m_engine, ecm_mode);
+		m_cw_handler_registered = true;
+		// The first CW packet was already intercepted by eDVBCWHandler BEFORE this
+		// registration, so the engine missed it. Apply it now to avoid waiting
+		// for the next CW cycle.
+		m_engine->setKey(parity, ecm_mode, (const uint8_t*)cw);
+		const uint8_t* cw_bytes = (const uint8_t*)cw;
+		eDebug("[eDVBCSASession] CW set: caid=0x%04X, parity=%d, hasEven=%d, hasOdd=%d, CW=%02X",
+			caid, parity, m_engine->hasEvenKey(), m_engine->hasOddKey(), cw_bytes[0]);
+
+		// Cache serviceId for future sessions (enables pre-registration on PiP swap)
+		auto& cached = s_csa_cache[svc_key];
+		cached.serviceId = serviceId;
+		cached.serviceId_valid = true;
+	}
+	else if (serviceId != 0 && serviceId != m_cw_service_id &&
+		serviceId != m_cw_alt_service_id &&
+		ref.getDVBNamespace() == m_service_ref.getDVBNamespace())
+	{
+		// ServiceId mismatch: pre-registration used cached serviceId from a different
+		// namespace variant of the same DVB triplet (e.g. C02ED8 vs C00000 for fallback
+		// tuner streams). Register ADDITIONALLY for the actual serviceId so the engine
+		// receives CWs from both connections - OScam alternates CW delivery between them.
+		eDebug("[eDVBCSASession] Additional serviceId %u registered (primary=%u)", serviceId, m_cw_service_id);
+		m_cw_alt_service_id = serviceId;
+		eDVBCWHandler::getInstance()->registerEngine(serviceId, m_engine, ecm_mode);
+		// Apply this CW directly - CWHandler already intercepted and missed it
+		m_engine->setKey(parity, ecm_mode, (const uint8_t*)cw);
+		const uint8_t* cw_bytes = (const uint8_t*)cw;
+		eDebug("[eDVBCSASession] CW set: caid=0x%04X, parity=%d, hasEven=%d, hasOdd=%d, CW=%02X",
+			caid, parity, m_engine->hasEvenKey(), m_engine->hasOddKey(), cw_bytes[0]);
+	}
+	else
+	{
+		eDVBCWHandler::getInstance()->updateEcmMode(m_cw_service_id, m_engine, ecm_mode);
+		// Set key if engine missed it (e.g. replayed CW from m_pending_cw)
+		if ((parity == 0 && !m_engine->hasEvenKey()) || (parity == 1 && !m_engine->hasOddKey()))
+		{
+			m_engine->setKey(parity, ecm_mode, (const uint8_t*)cw);
+			eDebug("[eDVBCSASession] CW set (missed by CWHandler): parity=%d, hasEven=%d, hasOdd=%d",
+				parity, m_engine->hasEvenKey(), m_engine->hasOddKey());
+		}
+	}
+
+	if (m_ecm_mode != ecm_mode)
+		eDebug("[eDVBCSASession] ECM Mode 0x%02X (%s, tail: %02X %02X %02X %02X)",
+			ecm_mode, source, m_ecm_tail[0], m_ecm_tail[1], m_ecm_tail[2], m_ecm_tail[3]);
+
+	// Signal firstCwReceived once (for SoftDecoder start)
+	if (!m_first_cw_signaled && m_engine->hasAnyKey())
+	{
+		eDebug("[eDVBCSASession] First CW received - signaling");
+		m_first_cw_signaled = true;
 		firstCwReceived();
 	}
 }

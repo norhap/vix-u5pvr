@@ -5,7 +5,7 @@ import tempfile
 
 from enigma import eTimer, fbClass
 from os import path, stat, system, mkdir, makedirs, listdir, remove, rename, rmdir, sep as ossep, statvfs, chmod, walk
-from shutil import copy, copyfile, move, rmtree
+from shutil import copyfile, move, rmtree
 from time import localtime, time, strftime, mktime
 
 from Components.ActionMap import ActionMap
@@ -25,7 +25,7 @@ from Screens.Setup import Setup
 from Screens.Standby import TryQuitMainloop
 from Screens.TaskView import JobView
 from Screens.TextBox import TextBox
-from Tools.Directories import fileExists, pathExists, fileHas
+from Tools.Directories import fileExists, pathExists
 import Tools.CopyFiles
 from Tools.Multiboot import GetImagelist
 from Tools.Notifications import AddPopupWithCallback
@@ -405,7 +405,7 @@ class VIXImageManager(Screen):
 		if answer is True:
 			(self.EMMCIMG, self.MTDBOOT) = SystemInfo["canBackupEMC"] if SystemInfo["canBackupEMC"] else (None, None)
 			if self.EMMCIMG:
-				message = _("Do you want to backup the image slot or create a recovery backup?") + "\n" + _("This can take up to 20 minutes for recovery backup , 6 minutes for image backup.")
+				message = _("Do you want to backup the image slot or create a recovery backup?") + "\n" + _("This can take up to 20 minutes for recovery backup, 6 minutes for image backup.")
 				ybox = self.session.openWithCallback(self.doBackup, MessageBox, message, MessageBox.TYPE_YESNO, list=[(_("Image backup"), True), (_("Recovery backup"), False)])
 				ybox.setTitle(_("Backup confirmation"))
 			else:
@@ -1209,7 +1209,7 @@ class ImageBackup(Screen):
 					self.commands.append('echo "' + _("Create:") + " logo dump" + '"')
 					self.commands.append(f"dd if=/dev/mtd4 of={self.WORKDIR}/logo.bin")
 			else:
-				if not MODEL in ("h8"):
+				if MODEL not in ("h8",):
 					self.MKUBIFS_ARGS = "-m 2048 -e 126976 -c 4096 -F"
 					self.UBINIZE_ARGS = "-m 2048 -p 128KiB"
 				self.commands.append(f"touch {self.WORKDIR}/root.ubi")
@@ -1588,6 +1588,7 @@ class ImageManagerDownload(Screen):
 		self.imagesList = {}
 		self.setIndex = 0
 		self.expanded = []
+		self.onChangedEntry = []
 		self["list"] = ChoiceList(list=[ChoiceEntryComponent("", ((_("No images found on the selected download server...if password check validity")), "Waiter"))])
 		self.getImageDistro()
 
@@ -1660,9 +1661,9 @@ class ImageManagerDownload(Screen):
 					if self.setIndex:
 						self["list"].moveToIndex(self.setIndex if self.setIndex < len(list) else len(list) - 1)
 				self.setIndex = 0
-			self.SelectionChanged()
+			self.selectionChanged()
 
-	def SelectionChanged(self):
+	def selectionChanged(self):
 		currentSelected = self["list"].getCurrent()
 		if currentSelected[0][1] == "Waiter":
 			self["key_green"].setText("")
@@ -1671,22 +1672,24 @@ class ImageManagerDownload(Screen):
 				self["key_green"].setText(_("Compress") if currentSelected[0][0] in self.expanded else _("Expand"))
 			else:
 				self["key_green"].setText(_("Download"))
+		for cb in self.onChangedEntry:
+			cb(currentSelected[0][0], "")
 
 	def keyLeft(self):
 		self["list"].pageUp()
-		self.SelectionChanged()
+		self.selectionChanged()
 
 	def keyRight(self):
 		self["list"].pageDown()
-		self.SelectionChanged()
+		self.selectionChanged()
 
 	def keyUp(self):
 		self["list"].moveUp()
-		self.SelectionChanged()
+		self.selectionChanged()
 
 	def keyDown(self):
 		self["list"].moveDown()
-		self.SelectionChanged()
+		self.selectionChanged()
 
 	def keyDownload(self):
 		currentSelected = self["list"].getCurrent()
@@ -1740,6 +1743,10 @@ class ImageManagerDownload(Screen):
 			base64bytes = base64.b64encode(('%s:%s' % (username, password)).encode())
 			headers = {("Authorization").encode(): ("Basic %s" % base64bytes.decode()).encode()}
 		return headers, scheme + "://" + hostname + port + parsed.path + query
+
+	def createSummary(self):
+		from Screens.PluginBrowser import PluginBrowserSummary
+		return PluginBrowserSummary
 
 
 class ImageManagerSetup(Setup):

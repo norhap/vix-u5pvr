@@ -104,7 +104,7 @@ void eDVBServiceFCCPlay::serviceEvent(int event)
 						ePtr<iDVBDemux> demux;
 						if (m_service_handler.getDataDemux(demux) == 0 && demux)
 						{
-							eDebug("[eDVBServiceFCCPlay] Starting ECM monitor: PID=%d, CAID=0x%04X", ecm_pid, caid);
+							eDebug("[eDVBServiceFCCPlay] Requesting ECM monitor: PID=%d, CAID=0x%04X", ecm_pid, caid);
 							m_csa_session->startECMMonitor(demux, ecm_pid, caid);
 						}
 					}
@@ -592,6 +592,11 @@ void eDVBServiceFCCPlay::setupSpeculativeDescrambling()
 	// Note: Use a lambda to call the protected base class method
 	m_soft_decoder->m_audio_pid_selected.connect(
 		[this](int pid) { this->onSoftDecoderAudioPidSelected(pid); });
+
+	// Suppress SoftCSA activation when CI module handles decryption
+	m_csa_session->shouldSuppressActivation = [this]() {
+		return m_service_handler.isCiConnected();
+	};
 
 	// Connect to session's activated signal - use FCC-specific callback!
 	// This is the key difference from base class: we use onFCCSessionActivated

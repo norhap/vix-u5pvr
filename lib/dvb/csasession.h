@@ -5,6 +5,7 @@
 #include <lib/dvb/idvb.h>
 #include <lib/base/ebase.h>
 #include <sigc++/sigc++.h>
+#include <functional>
 
 class eDVBCSAEngine;
 class eDVBCAHandler;
@@ -12,7 +13,7 @@ class eDVBCAHandler;
 /**
  * eDVBCSASession - CW-Management per Service with ECM-based CSA-ALT Detection
  *
- * - Receives CWs from OSCam via eDVBCAHandler signals
+ * - Receives CWs from softcam via eDVBCAHandler signals
  * - Filters by service reference
  * - Monitors ECM to detect CSA-ALT and ecm_mode
  * - ACTIVATES ITSELF when CSA-ALT is detected from ECM
@@ -58,7 +59,7 @@ public:
 	 * @param caid CA System ID for CSA-ALT detection
 	 *
 	 * Reads ecm[len-1] and extracts lower nibble for ecm_mode.
-	 * Also detects CSA-ALT from ECM using OSCam's select_csa_alt() logic:
+	 * Also detects CSA-ALT from ECM using softcam's select_csa_alt() logic:
 	 * - CAID is VideoGuard (0x09xx)
 	 * - ecm[4] != 0
 	 * - (ecm[2] - ecm[4]) == 4
@@ -91,6 +92,10 @@ public:
 	// Signal when first CW is received (for decoder start timing)
 	sigc::signal<void()> firstCwReceived;
 
+	// Optional callback to check if activation should be suppressed
+	// (e.g. CI module handles decryption). Return true to suppress.
+	std::function<bool()> shouldSuppressActivation;
+
 private:
 	eServiceReferenceDVB m_service_ref;
 	ePtr<eDVBCSAEngine> m_engine;
@@ -110,15 +115,31 @@ private:
 	bool m_csa_alt;               // true if CSA-ALT was detected
 	void ecmDataReceived(const uint8_t *data);
 
-	// Signal Connections
-	ePtr<eConnection> m_cw_connection;
-
 	// CW Handler (called from eDVBCAHandler signal)
-	void onCwReceived(eServiceReferenceDVB ref, int parity, const char* cw, uint16_t caid);
+	void onCwReceived(eServiceReferenceDVB ref, int parity, const char* cw, uint16_t caid, uint32_t serviceId);
 
 	// Helper
 	bool matchesService(const eServiceReferenceDVB& ref) const;
 	void setActive(bool active);
+
+	// eDVBCWHandler registration
+	uint32_t m_cw_service_id;       // Softcam's serviceId (set on first CW or pre-registered)
+	uint32_t m_cw_alt_service_id;   // Additional serviceId from different namespace variant (0 = none)
+	bool m_cw_handler_registered;   // true once registered with eDVBCWHandler
+	bool m_first_cw_signaled;       // true once firstCwReceived signal was emitted
+
+	// CW buffer for CWs arriving before activation
+	// When a CW arrives while m_active is false, we store it here.
+	// On setActive(true), the buffered CW is replayed immediately,
+	// avoiding a multi-second wait for the next CW cycle.
+	struct PendingCw {
+		int parity;
+		char cw[8];
+		uint16_t caid;
+		uint32_t serviceId;
+		bool valid;
+	};
+	PendingCw m_pending_cw;
 };
 
 #endif // __dvbcsasession_h
