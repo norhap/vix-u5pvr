@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-14 20:45+0100\n"
+"POT-Creation-Date: 2026-05-03 11:27+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -799,12 +799,6 @@ msgid "%d marked items"
 msgstr ""
 
 #, python-format
-msgid "%d millisecond"
-msgid_plural "%d milliseconds"
-msgstr[0] ""
-msgstr[1] ""
-
-#, python-format
 msgid "%d min"
 msgstr ""
 
@@ -933,10 +927,6 @@ msgid "%m/%d/%Y"
 msgstr ""
 
 #, python-format
-msgid "%s"
-msgstr ""
-
-#, python-format
 msgid "%s %s advanced remote control (native)"
 msgstr ""
 
@@ -1047,14 +1037,6 @@ msgstr ""
 
 #, python-format
 msgid "%s/%s: %s"
-msgstr ""
-
-#, python-format
-msgid "%s: "
-msgstr ""
-
-#, python-format
-msgid "%s?"
 msgstr ""
 
 #, python-format
@@ -1589,6 +1571,9 @@ msgid "AC3 downmix"
 msgstr ""
 
 msgid "AC3 transcoding"
+msgstr ""
+
+msgid "AC3+ Passthrough audio fix"
 msgstr ""
 
 msgid "ACQUIRING TSID/ONID"
@@ -5407,6 +5392,9 @@ msgstr ""
 msgid "Download"
 msgstr ""
 
+msgid "Download and install any packages that have been updated since the last software update was performed."
+msgstr ""
+
 msgid "Download confirmation"
 msgstr ""
 
@@ -5769,9 +5757,6 @@ msgstr ""
 msgid "Enable multiple bouquets"
 msgstr ""
 
-msgid "Enable new GStreamer playback"
-msgstr ""
-
 msgid "Enable or disable client mode."
 msgstr ""
 
@@ -5824,6 +5809,9 @@ msgid "Enabled"
 msgstr ""
 
 msgid "Enabled *"
+msgstr ""
+
+msgid "Enabled/Disable audio passthrough fix."
 msgstr ""
 
 msgid "Encrypted TV"
@@ -7545,9 +7533,6 @@ msgstr ""
 msgid "If enabled, display shows 12 chars instead 8, but in latin-1/translit only."
 msgstr ""
 
-msgid "If enabled, the new GStreamer playback engine will be used."
-msgstr ""
-
 msgid "If set to 'Standard' number buttons page up/down/left/right."
 msgstr ""
 
@@ -8058,7 +8043,7 @@ msgstr ""
 msgid "It allows making changes to the box with the knowledge that the box can be safely reverted back to a previous known working state."
 msgstr ""
 
-msgid "It seems you have hit your API limit - please try again later."
+msgid "It seems you have hit your API limit - please try again later.\n"
 msgstr ""
 
 msgid "It seems you have not setup an extra location. Please set it up in the Backup manager setup menu."
@@ -8171,9 +8156,6 @@ msgid "Kexec warning"
 msgstr ""
 
 msgid "Key"
-msgstr ""
-
-msgid "Key Events"
 msgstr ""
 
 msgid "Keyboard"
@@ -8531,7 +8513,16 @@ msgstr ""
 msgid "Log %s-%s"
 msgstr ""
 
+msgid "Log All"
+msgstr ""
+
+msgid "Log Key Events"
+msgstr ""
+
 msgid "Log Manager"
+msgstr ""
+
+msgid "Log Messages"
 msgstr ""
 
 msgid "Log python stack trace on spinner"
@@ -8675,6 +8666,9 @@ msgstr ""
 msgid "Maintain old EPG data for"
 msgstr ""
 
+msgid "Make a full image backup if you want save an exact copy of your current image and its configuration."
+msgstr ""
+
 msgid "Make settings backup"
 msgstr ""
 
@@ -8688,6 +8682,9 @@ msgid "Make this mark just a mark"
 msgstr ""
 
 msgid "Making a settings backup before updating is highly recommended."
+msgstr ""
+
+msgid "Making a settings backup is advised before doing a software update and can be used later should a full reflash be required."
 msgstr ""
 
 msgid "Malawi"
@@ -8769,6 +8766,9 @@ msgid "Max image backups to keep (0==all)"
 msgstr ""
 
 msgid "Max memory positions"
+msgstr ""
+
+msgid "Max pages to retrieve"
 msgstr ""
 
 msgid "Max. bitrate: "
@@ -8853,13 +8853,7 @@ msgstr ""
 msgid "Message"
 msgstr ""
 
-msgid "MessageBox Direct Item Selection Actions"
-msgstr ""
-
-msgid "MessageBox Functions"
-msgstr ""
-
-msgid "Messages"
+msgid "MessageBox Actions"
 msgstr ""
 
 msgid "Mexico"
@@ -9683,6 +9677,9 @@ msgstr ""
 msgid "No networks found"
 msgstr ""
 
+msgid "No new commits found on this repository."
+msgstr ""
+
 msgid "No of items switch (increase or reduced)"
 msgstr ""
 
@@ -10333,12 +10330,6 @@ msgid "Partition: %s  Mount: %s unmounted successfully; if all partitions now un
 msgstr ""
 
 msgid "Passthrough"
-msgstr ""
-
-msgid "Passthrough audio handling delay AC3"
-msgstr ""
-
-msgid "Passthrough audio handling delay AC3+"
 msgstr ""
 
 msgid "Password"
@@ -11181,6 +11172,9 @@ msgid ""
 "If this issue persists please check/report on forum"
 msgstr ""
 
+msgid "Processing"
+msgstr ""
+
 #, python-format
 msgid "Processor temperature:\t%s"
 msgstr ""
@@ -11551,6 +11545,9 @@ msgid "Rec button (short)"
 msgstr ""
 
 msgid "Recall channel, panic button & number zap"
+msgstr ""
+
+msgid "Receiver will action TV wakeup request based on this setting"
 msgstr ""
 
 msgid "Record"
@@ -13565,13 +13562,13 @@ msgstr ""
 msgid "Show Software Update in Extensions (blue button menu). 'yes' adds it permanently. 'only when available' only shows it when updates are known to be available based on update polling."
 msgstr ""
 
-msgid "Show Time Remaining/Elapsed"
+msgid "Show Time Remaining/Elapsed *"
 msgstr ""
 
 msgid "Show Timer List"
 msgstr ""
 
-msgid "Show Transponder Remaining/Elapsed as"
+msgid "Show Transponder Remaining/Elapsed as *"
 msgstr ""
 
 msgid "Show True/False as graphical switch"
@@ -13844,13 +13841,13 @@ msgstr ""
 msgid "Show the tv player"
 msgstr ""
 
-msgid "Show time elapsed as positive"
+msgid "Show time elapsed as positive *"
 msgstr ""
 
 msgid "Show time in 24 hour clock format."
 msgstr ""
 
-msgid "Show time remaining/elapsed"
+msgid "Show time remaining/elapsed *"
 msgstr ""
 
 msgid "Show timer list"
@@ -13862,7 +13859,7 @@ msgstr ""
 msgid "Show transponder info"
 msgstr ""
 
-msgid "Show transponder remaining/elapsed as"
+msgid "Show transponder remaining/elapsed as *"
 msgstr ""
 
 msgid "Show two lines per entry"
@@ -15209,9 +15206,6 @@ msgstr ""
 msgid "The command to wake from standby will be sent multiple times."
 msgstr ""
 
-msgid "The commit log cannot be retrieved at the moment - please try again later."
-msgstr ""
-
 msgid "The commit log cannot be retrieved at the moment - please try again later.\n"
 msgstr ""
 
@@ -15383,6 +15377,9 @@ msgid "This file forces the update."
 msgstr ""
 
 msgid "This is a multitype tuner. Available options depend on the hardware."
+msgstr ""
+
+msgid "This is the number of pages to download per repository being interogated. More pages shows more commits, but, bear in mind that Github API has a limit of 60 pages per hour."
 msgstr ""
 
 msgid "This is the order in which DiSEqC commands are sent to the aerial system. The order must correspond exactly with the order the physical devices are arranged along the signal cable (starting from the receiver end)."
@@ -16244,6 +16241,9 @@ msgstr ""
 msgid "Update packages..."
 msgstr ""
 
+msgid "Update to the newest version of any channel list package previously downloaded from the feeds. No other changes will be made."
+msgstr ""
+
 msgid "Updating Cache"
 msgstr ""
 
@@ -16457,12 +16457,6 @@ msgid "Use trash can in movie list"
 msgstr ""
 
 msgid "Used service scan type"
-msgstr ""
-
-msgid "Used to specify delay when switching between services and AC3 passthrough is enabled."
-msgstr ""
-
-msgid "Used to specify delay when switching between services and AC3+/Atmos passthrough is enabled."
 msgstr ""
 
 msgid "Used:"
@@ -16702,10 +16696,16 @@ msgstr ""
 msgid "View progress"
 msgstr ""
 
+msgid "View repository history"
+msgstr ""
+
 msgid "View teletext"
 msgstr ""
 
-msgid "View the changes"
+msgid "View the history of the principal repositories. These show up to the minute changes but may not reflect the exact state of any new build."
+msgstr ""
+
+msgid "View the list of packages which have newer versions and are marked for updating."
 msgstr ""
 
 msgid "View video CD..."
@@ -16837,9 +16837,6 @@ msgid "Wake Up"
 msgstr ""
 
 msgid "Wake Up To Standby"
-msgstr ""
-
-msgid "Wake the receiver from standby when the wake command is sent from the TV."
 msgstr ""
 
 msgid "Wake up to standby"
@@ -17007,6 +17004,9 @@ msgstr ""
 msgid "What do you want to scan?"
 msgstr ""
 
+msgid "When TV issues wakeup, receiver will action based on 'Wakeup signal from TV' setting."
+msgstr ""
+
 msgid "When enabled a forced download will be possible from the extensions menu (blue button). Shows after next restart."
 msgstr ""
 
@@ -17017,9 +17017,6 @@ msgid "When enabled the online checker will also check for experimental versions
 msgstr ""
 
 msgid "When enabled the receiver will automatically return to standby when the TV is turned off."
-msgstr ""
-
-msgid "When enabled the receiver will automatically wake from standby when the TV is turned on."
 msgstr ""
 
 msgid "When enabled the set top box is able to wakeup on LAN"
@@ -18622,6 +18619,9 @@ msgid "pre-school children's program"
 msgstr ""
 
 msgid "preserve bookmarks in cuts"
+msgstr ""
+
+msgid "print debug"
 msgstr ""
 
 msgid "priority"

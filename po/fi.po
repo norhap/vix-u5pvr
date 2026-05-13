@@ -4,8 +4,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: enigma2\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-29 14:28+0300\n"
-"PO-Revision-Date: 2026-03-29 15:20+0300\n"
+"POT-Creation-Date: 2026-05-09 20:01+0300\n"
+"PO-Revision-Date: 2026-05-09 20:15+0300\n"
 "Last-Translator: Orlandox\n"
 "Language-Team: timoj/Kojo/Samzam/Orlandox\n"
 "Language: fi\n"
@@ -1599,13 +1599,13 @@ msgid "A/V settings"
 msgstr "A/V-asetukset"
 
 msgid "AAC downmix"
-msgstr "AAC stereoksi"
+msgstr "AAC-ääni"
 
 msgid "AAC transcoding"
 msgstr "AAC uudelleenpakkaus"
 
 msgid "AAC+ downmix"
-msgstr "AAC+ stereoksi"
+msgstr "AAC+-ääni"
 
 msgid "ABOUT"
 msgstr "TIETOJA"
@@ -1614,7 +1614,7 @@ msgid "AC3"
 msgstr "AC3"
 
 msgid "AC3 downmix"
-msgstr "AC3 stereoksi"
+msgstr "AC3-ääni"
 
 msgid "AC3 transcoding"
 msgstr "AC3 uudelleenpakkaus"
@@ -2379,7 +2379,7 @@ msgid "Audio"
 msgstr "Ääni"
 
 msgid "Audio & Video"
-msgstr "Ääni ja Kuva"
+msgstr "Ääni ja kuva"
 
 msgid "Audio PID"
 msgstr "Ääni PID"
@@ -3559,16 +3559,16 @@ msgid "Choose where to mount your devices to:"
 msgstr "Valitse minne laitteet liitetään:"
 
 msgid "Choose whether AAC sound tracks should be transcoded."
-msgstr "Valitse tehdäänkö AAC-ääniraidoille uudelleenpakkaus (transcoding)."
+msgstr "Valitse tehdäänkö AAC-ääniraidoille uudelleenpakkaus (transkoodaus)."
 
 msgid "Choose whether WMA Pro sound tracks should be downmixed."
-msgstr "Valitse tehdäänkö WMA Pro-ääniraidoille uudelleenpakkaus."
+msgstr "Valitse muunnetaanko WMA Pro-ääniraidat stereoksi."
 
 msgid "Choose whether multi channel aac sound tracks should be downmixed to stereo."
 msgstr "Valitse muunnetaanko monikanavaiset aac-ääniraidat stereoksi."
 
 msgid "Choose whether multi channel aac+ sound tracks should be downmixed to stereo."
-msgstr "Valitse muunnetaanko monikanavaiset aac+ ääniraidat stereoksi."
+msgstr "Valitse muunnetaanko monikanavaiset aac+-ääniraidat stereoksi."
 
 msgid "Choose whether multi channel ac3 sound tracks should be downmixed to stereo."
 msgstr "Valitse muunnetaanko monikanavaiset ac3-ääniraidat stereoksi."
@@ -3577,7 +3577,7 @@ msgid "Choose whether multi channel dts sound tracks should be downmixed to ster
 msgstr "Valitse muunnetaanko monikanavaiset dts-ääniraidat stereoksi."
 
 msgid "Choose whether multi channel sound tracks should be output as PCM."
-msgstr "Valitse tuleeko monikanavaiset ääniraidat ulos PCM-muodossa."
+msgstr "Valitse, toistetaanko monikanavaisia ​​ääniraitoja PCM-muodossa."
 
 msgid "Choose whether or not to show an icon when a motorised dish is moving."
 msgstr "Valitse näytetäänkö kuvake moottoroidun antennin kääntyessä."
@@ -4543,7 +4543,7 @@ msgid "DTS"
 msgstr "DTS"
 
 msgid "DTS downmix"
-msgstr "DTS muunto stereoksi"
+msgstr "DTS-ääni"
 
 msgid "DTS-HD HR/DTS-HD MA/DTS"
 msgstr "DTS-HD HR/DTS-HD MA/DTS"
@@ -5508,7 +5508,7 @@ msgid "Downloads"
 msgstr "Lataukset"
 
 msgid "Downmix"
-msgstr "Downmix"
+msgstr "Muunto stereoksi"
 
 msgid "Drama"
 msgstr "Elokuva/draama"
@@ -5763,7 +5763,7 @@ msgid "Enable Autostart"
 msgstr "Aut.käynnistys käyttöön"
 
 msgid "Enable Bluetooth Audio"
-msgstr "Ota Bluetooth ääni käyttöön"
+msgstr "Ota Bluetooth-ääni käyttöön"
 
 msgid "Enable EIT EPG"
 msgstr "Ota käyttöön EIT EPG"
@@ -5852,9 +5852,6 @@ msgstr "Suosikkien järjestely"
 
 msgid "Enable multiple bouquets"
 msgstr "Salli useiden suosikkilistojen luonti ja käyttö"
-
-msgid "Enable new GStreamer playback"
-msgstr "Ota käyttöön uusi GStreamer-toisto"
 
 msgid "Enable or disable client mode."
 msgstr "Salli tai estä 'client moodi'."
@@ -6947,7 +6944,7 @@ msgid "General Arts"
 msgstr "Yleinen taide"
 
 msgid "General Bluetooth Audio delay"
-msgstr "Yleinen Bluetooth Äänen viive"
+msgstr "Yleinen Bluetooth-äänen viive"
 
 msgid "General Children's"
 msgstr "Yleinen Lasten"
@@ -7212,7 +7209,7 @@ msgid "HD"
 msgstr "HD"
 
 msgid "HD list"
-msgstr "HD lista"
+msgstr "HD-lista"
 
 msgid "HD11/HD51/HD1100/HD1200/HD1265/HD1500/HD500C/HD530C/et7x00/et8500"
 msgstr "HD11/HD51/HD1100/HD1200/HD1265/HD1500/HD500C/HD530C/et7x00/et8500"
@@ -7230,22 +7227,22 @@ msgid "HDMI"
 msgstr "HDMI"
 
 msgid "HDMI Color depth"
-msgstr "HDMI Värisyvyys"
+msgstr "HDMI-värisyvyys"
 
 msgid "HDMI Colorimetry"
-msgstr "HDMI Väriavaruus"
+msgstr "HDMI-kolorimetria"
 
 msgid "HDMI Colorspace"
-msgstr "HDMI Väriavaruus"
+msgstr "HDMI-väriavaruus"
 
 msgid "HDMI HDR Type"
-msgstr "HDMI HDR Tyyppi"
+msgstr "HDMI HDR-tyyppi"
 
 msgid "HDMI Recording Settings"
 msgstr "HDMI-tallennusasetukset"
 
 msgid "HDMI input"
-msgstr "HDMI sisääntulo"
+msgstr "HDMI-sisääntulo"
 
 msgid "HDMI-CEC"
 msgstr "HDMI-CEC"
@@ -7257,13 +7254,13 @@ msgid "HDMI-IN"
 msgstr "HDMI-IN"
 
 msgid "HDMIin"
-msgstr "HDMI sisääntulo"
+msgstr "HDMI-sisääntulo"
 
 msgid "HDR, 12bit 4:2:0/4:2:2, no PIP"
 msgstr "HDR, 12bit 4:2:0/4:2:2, ei PIP"
 
 msgid "HDR10 Support"
-msgstr "HDR10 Tuki"
+msgstr "HDR10-tuki"
 
 msgid "HELP"
 msgstr "HELP"
@@ -7654,9 +7651,6 @@ msgstr "Jos päällä, CEC-protokollan liikenteestä pidetään lokia ('hdmicec.
 msgid "If enabled, display shows 12 chars instead 8, but in latin-1/translit only."
 msgstr "Jos päällä, näytössä näytetään 12 merkkiä 8 sijaan, mutta vain latin-1 -käännöksenä."
 
-msgid "If enabled, the new GStreamer playback engine will be used."
-msgstr "Jos päällä, käytetään uutta GStreamer-ohjelmakoodia"
-
 msgid "If set to 'Standard' number buttons page up/down/left/right."
 msgstr "Jos asetettu vakioksi, numeronäppäimet sivu ylös/alas/vasemmalle/oikealle."
 
@@ -7706,7 +7700,7 @@ msgid "If set to 'yes', allows you to use timeshift with alternative audio plugi
 msgstr "'Kyllä' valittuna sallii käyttää ajansiirtoa vaihtoehtoisilla audio-lisäosilla."
 
 msgid "If set to 'yes', the infobar will be displayed when Fast Forwarding or Rewinding during media playback."
-msgstr "'Kyllä' valinnalla tietopalkki näytetään tallenteen katselussa pikakelausten aikana."
+msgstr "'Kyllä' valinnalla tietopalkki näytetään median toistossa pikakelausten aikana."
 
 msgid "If the receiver was woken from 'Deep Standby' and is currently in 'Standby' and no recordings are in progress return it to 'Deep Standby' once the EPG download has completed."
 msgstr "Jos vastaanotin herätettiin 'Virransäästötilasta' ja se on tällä hetkellä 'Valmiustilassa' eikä tallennuksia ole käynnissä, palauta se 'Virransäästötilaan', kun EPG:n lataus on valmis."
@@ -8295,9 +8289,6 @@ msgstr "Kexec-varoitus"
 msgid "Key"
 msgstr "Avain"
 
-msgid "Key Events"
-msgstr "Avain tapahtumat"
-
 msgid "Keyboard"
 msgstr "Näppäimistö"
 
@@ -8663,8 +8654,17 @@ msgstr "Lokit"
 msgid "Log %s-%s"
 msgstr "Loki %s-%s"
 
+msgid "Log All"
+msgstr "Kirjaa kaikki"
+
+msgid "Log Key Events"
+msgstr "Kirjaa tärkeät tapahtumat"
+
 msgid "Log Manager"
 msgstr "Lokien hallinta"
+
+msgid "Log Messages"
+msgstr "Kirjaa viestit"
 
 msgid "Log python stack trace on spinner"
 msgstr "Lokita python-pinon jäljitys spinnerissä"
@@ -8822,11 +8822,11 @@ msgstr "Tee tästä merkistä lopetuspiste"
 msgid "Make this mark just a mark"
 msgstr "Tee tästä tavallinen merkki"
 
-msgid "Making a settings back is advised before doing a software update and can be used later should a full reflash be required."
-msgstr "Asetusten varmuuskopiointi on suositeltavaa ennen ohjelmistopäivityksen suorittamista, ja sitä voidaan käyttää myöhemmin, jos laitteen täydellinen uudelleen flashaus tarvitaan."
-
 msgid "Making a settings backup before updating is highly recommended."
 msgstr "Asetusten varmuuskopiointi ennen päivitystä on erittäin suositeltavaa."
+
+msgid "Making a settings backup is advised before doing a software update and can be used later should a full reflash be required."
+msgstr "Asetusten varmuuskopiointi on suositeltavaa ennen ohjelmistopäivityksen suorittamista, ja sitä voidaan käyttää myöhemmin, jos laitteen täydellinen uudelleen flashaus tarvitaan."
 
 msgid "Malawi"
 msgstr "Malawi"
@@ -8948,7 +8948,7 @@ msgid "Mb/s"
 msgstr "Mb/s"
 
 msgid "Media playback Remaining/Elapsed as"
-msgstr "Näytä tallenteen jäljellä oleva/kulunut aika:"
+msgstr "Näytä toistettavan median jäljellä oleva/kulunut aika:"
 
 msgid "Media player"
 msgstr "Mediasoitin"
@@ -8996,14 +8996,8 @@ msgstr "Yhdistetään ajansiirron tiedostot"
 msgid "Message"
 msgstr "Viesti"
 
-msgid "MessageBox Direct Item Selection Actions"
-msgstr "Viestilaatikko Suora Nimike Valinta Toiminnot"
-
-msgid "MessageBox Functions"
+msgid "MessageBox Actions"
 msgstr "Viestilaatikon toiminnot"
-
-msgid "Messages"
-msgstr "Viestit"
 
 msgid "Mexico"
 msgstr "Meksiko"
@@ -11398,6 +11392,9 @@ msgstr ""
 "Päivityslistaa ei voi ladata.\n"
 "Jos tämä jatkuu tarkista/raportoi foorumille"
 
+msgid "Processing"
+msgstr "Käsitellään"
+
 #, python-format
 msgid "Processor temperature:\t%s"
 msgstr "Prosessorin lämpötila:\t%s"
@@ -11769,6 +11766,9 @@ msgstr "Tallennus-näppäin (lyhyt)"
 
 msgid "Recall channel, panic button & number zap"
 msgstr "Palauta kanava, paniikkinäppäin ja numerokanavanvaihto"
+
+msgid "Receiver will action TV wakeup request based on this setting"
+msgstr "Vastaanotin käsittelee television herätyspyynnön tämän asetuksen mukaisesti"
 
 msgid "Record"
 msgstr "Tallenna"
@@ -13768,7 +13768,7 @@ msgid "Show Log Manager in extensions list ?"
 msgstr "Näytä lokien hallinta laajennusvalikossa?"
 
 msgid "Show Media playback Remaining/Elapsed as"
-msgstr "Näytä tallenteen jäljellä oleva/kulunut aika:"
+msgstr "Näytä toistettavan median jäljellä oleva/kulunut aika:"
 
 msgid "Show MiniTV in the Front Display"
 msgstr "Näytä MiniTV etupaneelin näytössä"
@@ -13803,14 +13803,14 @@ msgstr "Näytä ohjelmapäivitys laajennuksissa"
 msgid "Show Software Update in Extensions (blue button menu). 'yes' adds it permanently. 'only when available' only shows it when updates are known to be available based on update polling."
 msgstr "Näytä ohjelmapäivitys laajennuksissa (sininen näppäin). 'Kyllä' lisää sen pysyvästi. 'Vain kun saatavilla' näyttää sen vain, kun päivitys on saatavilla perustuen tarkistustiheyteen."
 
-msgid "Show Time Remaining/Elapsed"
-msgstr "Näytä jäljellä oleva/kulunut aika"
+msgid "Show Time Remaining/Elapsed *"
+msgstr "Näytä jäljellä oleva/kulunut aika *"
 
 msgid "Show Timer List"
 msgstr "Näytä ajastusluettelo"
 
-msgid "Show Transponder Remaining/Elapsed as"
-msgstr "Näytä ohjelman jäljellä oleva/kulunut aika:"
+msgid "Show Transponder Remaining/Elapsed as *"
+msgstr "Näytä transponderin jäljellä oleva/kulunut aika: *"
 
 msgid "Show True/False as graphical switch"
 msgstr "Näytä Kyllä/Ei -kysymykset graafisina kytkiminä"
@@ -14082,14 +14082,14 @@ msgstr "Näytä kanavan tiedot kahdella rivillä kanavanvalintanäytössä."
 msgid "Show the tv player"
 msgstr "Näytä tv"
 
-msgid "Show time elapsed as positive"
-msgstr "Näytä kulunut aika positiivisena"
+msgid "Show time elapsed as positive *"
+msgstr "Näytä kulunut aika positiivisena *"
 
 msgid "Show time in 24 hour clock format."
 msgstr "Näytä aika 24h muodossa."
 
-msgid "Show time remaining/elapsed"
-msgstr "Näytä jäljellä oleva/kulunut aika"
+msgid "Show time remaining/elapsed *"
+msgstr "Näytä jäljellä oleva/kulunut aika *"
 
 msgid "Show timer list"
 msgstr "Näytä ajastusluettelo"
@@ -14100,8 +14100,8 @@ msgstr "Näytä käännöstiedostojen ohjelmapaketit"
 msgid "Show transponder info"
 msgstr "Näytä transponderin tietoja"
 
-msgid "Show transponder remaining/elapsed as"
-msgstr "Näytä transponderin jäljellä oleva/kulunut aika:"
+msgid "Show transponder remaining/elapsed as *"
+msgstr "Näytä transponderin jäljellä oleva/kulunut aika: *"
 
 msgid "Show two lines per entry"
 msgstr "Näytä kaksi riviä per kanava"
@@ -15199,7 +15199,7 @@ msgstr ""
 "Suomenkielinen käännös: timoj, Kojo, Samzam, Orlandox\n"
 "\n"
 "Ylläpito : Orlandox\n"
-"--- 29.03.2026 ---\n"
+"--- 09.05.2026 ---\n"
 "\n"
 "http://www.huoltovalikko.com"
 
@@ -15334,8 +15334,8 @@ msgstr "Testin tyyppi"
 msgid "Testscreens"
 msgstr "Testikuvat"
 
-msgid "Testscreens that are helpfull to fine-tune your display"
-msgstr "Testikuvat ovat avuksi näytön virityksessä"
+msgid "Testscreens that are helpful to fine-tune your display"
+msgstr "Testikuvia, jotka ovat hyödyllisiä näytön hienosäätöön"
 
 msgid "Text"
 msgstr "Teksti"
@@ -15719,13 +15719,13 @@ msgid "This option allows you to choose how to display elapsed time. As + or -"
 msgstr "Tämä asetus määrittää kuinka kulunut aika näytetään. Joko + tai -"
 
 msgid "This option allows you to choose how to display the remaining/elapsed time for Media playback."
-msgstr "Tämä asetus määrittää kuinka tallenteen katselun jäljelläoleva/kulunut aika näytetään."
+msgstr "Tämä asetus määrittää kuinka toistettavan median jäljellä oleva/kulunut aika näytetään."
 
 msgid "This option allows you to choose how to display the remaining/elapsed time for live TV."
-msgstr "Tämä asetus määrittää kuinka TV-lähetyksen jäljelläoleva/kulunut aika näytetään."
+msgstr "Tämä asetus määrittää kuinka TV-lähetyksen jäljellä oleva/kulunut aika näytetään."
 
 msgid "This option allows you to choose how to display the remaining/elapsed time for media playback."
-msgstr "Tämä asetus määrittää kuinka tallenteen katselun jäljelläoleva/kulunut aika näytetään."
+msgstr "Tämä asetus määrittää kuinka toistettavan median jäljellä oleva/kulunut aika näytetään."
 
 msgid "This option allows you to choose what the first button press jumps to in channel list screen, (so pressing '2' jumps to 'A' or '2' first), when 'Quick Actions' preset actions are perfomed. "
 msgstr "Tämä asetus määrittää mitä ensimmäinen näppäimen painallus tekee kanavalistassa, ('2' painallus hyppää joko 'A' tai '2'' kohtaan ensin), kun suoritetaan 'Pikatoimintojen' määritettyjä asetuksia. "
@@ -15761,7 +15761,7 @@ msgid "This option allows you to switch audio to bluetooth speakers."
 msgstr "Tämä asetus sallii kytkeä äänen bluetooth-kaiuttimiin."
 
 msgid "This option allows you to view the old and new settings side by side."
-msgstr "Tämä asetus määrittää näytetäänkö vanhat ja uudet asetuksen rinnakkain."
+msgstr "Tämä asetus määrittää näytetäänkö vanhat ja uudet asetukset rinnakkain."
 
 msgid "This option configures output for Auto Volume Level."
 msgstr "Tämä asetus määrittää automaattisen äänenvoimakkuuden tason."
@@ -16182,7 +16182,7 @@ msgid "Transport Stream Type"
 msgstr "Syötteen tyyppi"
 
 msgid "Trash"
-msgstr "Roska"
+msgstr "Roskakori"
 
 msgid "Trash can"
 msgstr "Roskakori"
@@ -16911,7 +16911,7 @@ msgid "Viaggi"
 msgstr "Matkat"
 
 msgid "Video & Audio Settings"
-msgstr "Kuva & Ääni-asetukset"
+msgstr "Äänen ja kuvan asetukset"
 
 msgid "Video Chip Mode*"
 msgstr "Video-sirun tila*"
@@ -17078,7 +17078,7 @@ msgid "WLAN connection"
 msgstr "WLAN-yhteys"
 
 msgid "WMA Pro downmix"
-msgstr "WMA Pro stereoksi"
+msgstr "WMA Pro-ääni"
 
 msgid "WPA"
 msgstr "WPA"
@@ -17140,9 +17140,6 @@ msgstr "Käynnistys"
 
 msgid "Wake Up To Standby"
 msgstr "Käynnisty valmiustilaan"
-
-msgid "Wake the receiver from standby when the wake command is sent from the TV."
-msgstr "Herätä vastaanotin valmiustilasta, kun herätyskomento lähetetään TV:stä."
 
 msgid "Wake up to standby"
 msgstr "Käynnisty valmiustilaan"
@@ -17339,6 +17336,9 @@ msgstr "Mikä viikonpäivä?"
 msgid "What do you want to scan?"
 msgstr "Mitä haluat hakea?"
 
+msgid "When TV issues wakeup, receiver will action based on 'Wakeup signal from TV' setting."
+msgstr "Kun televisio herää lepotilasta, vastaanotin toimii ”Käynnistyssignaali TV:ltä” -asetuksen mukaisesti."
+
 msgid "When enabled a forced download will be possible from the extensions menu (blue button). Shows after next restart."
 msgstr "Kun sallittu, pakotettu lataus on mahdollista laajennusvalikosta (sininen näppäin). Näkyy seuraavan uudelleenkäynnistyksen jälkeen."
 
@@ -17350,9 +17350,6 @@ msgstr "Kun päällä, päivitys etsii myös kokeiluversioita"
 
 msgid "When enabled the receiver will automatically return to standby when the TV is turned off."
 msgstr "Kun päällä, vastaanotin palaa automaattisesti valmiustilaan, kun TV sammutetaan."
-
-msgid "When enabled the receiver will automatically wake from standby when the TV is turned on."
-msgstr "Kun päällä, vastaanotin herää automaattisesti valmiustilasta, kun TV käynnistetään."
 
 msgid "When enabled the set top box is able to wakeup on LAN"
 msgstr "Kun valittu, niin bigiboksi voi herätä lähiverkossa"
@@ -19001,6 +18998,9 @@ msgstr "esikouluikäisten lastenohjelma"
 
 msgid "preserve bookmarks in cuts"
 msgstr "säilytä kirjanmerkit leikkauksissa"
+
+msgid "print debug"
+msgstr "tulosta vianmääritys"
 
 msgid "priority"
 msgstr "Prioriteetti"
