@@ -756,18 +756,6 @@ GQuark hdAudioAuxRetryBlockQuark()
 	return quark;
 }
 
-GQuark hdAudioNativeEac3ResetPendingQuark()
-{
-	static GQuark quark = g_quark_from_static_string("enigma2-hd-audio-native-eac3-reset-pending");
-	return quark;
-}
-
-GQuark hdAudioNativeRetryQuark()
-{
-	static GQuark quark = g_quark_from_static_string("enigma2-hd-audio-native-retry");
-	return quark;
-}
-
 HDAudioAuxState *getHDAudioAuxState(GstElement *playbin)
 {
 	return playbin ? static_cast<HDAudioAuxState *>(
@@ -794,28 +782,6 @@ void setHDAudioAuxRetryBlocked(GstElement *playbin, bool blocked)
 {
 	if (playbin)
 		g_object_set_qdata(G_OBJECT(playbin), hdAudioAuxRetryBlockQuark(), GINT_TO_POINTER(blocked ? 1 : 0));
-}
-
-bool hdAudioNativeEac3ResetPending(GstElement *playbin)
-{
-	return playbin && GPOINTER_TO_INT(g_object_get_qdata(G_OBJECT(playbin), hdAudioNativeEac3ResetPendingQuark()));
-}
-
-void setHDAudioNativeEac3ResetPending(GstElement *playbin, bool pending)
-{
-	if (playbin)
-		g_object_set_qdata(G_OBJECT(playbin), hdAudioNativeEac3ResetPendingQuark(), GINT_TO_POINTER(pending ? 1 : 0));
-}
-
-int hdAudioNativeRetry(GstElement *playbin)
-{
-	return playbin ? GPOINTER_TO_INT(g_object_get_qdata(G_OBJECT(playbin), hdAudioNativeRetryQuark())) - 1 : -1;
-}
-
-void setHDAudioNativeRetry(GstElement *playbin, int stream)
-{
-	if (playbin)
-		g_object_set_qdata(G_OBJECT(playbin), hdAudioNativeRetryQuark(), stream >= 0 ? GINT_TO_POINTER(stream + 1) : NULL);
 }
 
 gint hdAudioAuxMatchSinkType(const GValue *velement, gpointer user_data)
@@ -1603,6 +1569,13 @@ eServiceMP3::eServiceMP3(eServiceReference ref):
 	m_dvb_subtitle_parser = new eDVBSubtitleParser();
 	m_dvb_subtitle_parser->connectNewPage(sigc::mem_fun(*this, &eServiceMP3::newDVBSubtitlePage), m_new_dvb_subtitle_page_connection);
 	m_passthrough_fix_timer = eTimer::create(eApp);
+	m_audio_switch_deferred = -1;
+	m_audio_switch_flush_phase = AudioSwitchFlushNone;
+	m_audio_switch_flush_resume = true;
+	m_audio_switch_flush_resuming = false;
+	m_subtitle_switch_deferred = false;
+	m_subtitle_switch_needs_flush = false;
+	m_subtitle_generation = 0;
 	m_stream_tags = 0;
 	m_currentAudioStream = -1;
 	m_currentSubtitleStream = -1;
@@ -1622,11 +1595,18 @@ eServiceMP3::eServiceMP3(eServiceReference ref):
 	m_cuesheet_loaded = false; /* cuesheet CVR */
 	m_use_chapter_entries = false; /* TOC chapter support CVR */
 	m_last_seek_pos = 0; /* CVR last seek position */
+	m_pending_start_position = -1;
+	m_start_events_deferred = false;
 	m_useragent = "Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.113 Safari/537.36";
 	m_extra_headers = "";
 	m_download_buffer_path = "";
 	m_prev_decoder_time = -1;
 	m_decoder_time_valid_state = 0;
+	m_position_baseline_valid = false;
+	m_position_correction_enabled = true;
+	m_position_baseline = 0;
+	m_position_baseline_provisional = -1;
+	m_position_baseline_first_seen_us = 0;
 	m_errorInfo.missing_codec = "";
 	audioSink = videoSink = NULL;
 	m_decoder = NULL;
@@ -1819,6 +1799,57 @@ eServiceMP3::eServiceMP3(eServiceReference ref):
 	if (strstr(filename, "://"))
 		m_sourceinfo.is_streaming = TRUE;
 
+	/* Optional "&e2startoffset=<pts>", "&e2audiotrack=<index>" and
+	 * "&e2subtitletrack=<index>" parameters, in the same ad-hoc
+	 * "&key=value" style as "&suburi=" below - lets a caller (e.g. a
+	 * custom Python movie player) request the position/tracks playback
+	 * starts at directly, instead of always starting at 0/track 0 and
+	 * jumping/switching afterward. Parsed and stripped from filename/
+	 * filename_str here, before "&suburi=" below, so that catch-all
+	 * (which takes everything to the end of the string as its value)
+	 * doesn't swallow whichever of these happens to follow it. */
+	{
+		static const struct { const char *marker; int which; } url_params[] = {
+			{ "&e2startoffset=", 0 },
+			{ "&e2audiotrack=", 1 },
+			{ "&e2subtitletrack=", 2 },
+		};
+		for (unsigned int p = 0; p < sizeof(url_params) / sizeof(url_params[0]); p++)
+		{
+			size_t ppos = filename_str.find(url_params[p].marker);
+			if (ppos == std::string::npos)
+				continue;
+			size_t value_start = ppos + strlen(url_params[p].marker);
+			size_t value_end = filename_str.find('&', value_start);
+			std::string value = (value_end == std::string::npos) ?
+				filename_str.substr(value_start) :
+				filename_str.substr(value_start, value_end - value_start);
+			switch (url_params[p].which)
+			{
+			case 0:
+				m_pending_start_position = atoll(value.c_str());
+				eDebug("[eServiceMP3] construct: e2startoffset=%lld", (long long)m_pending_start_position);
+				break;
+			case 1:
+				m_currentAudioStream = atoi(value.c_str());
+				eDebug("[eServiceMP3] construct: e2audiotrack=%d", m_currentAudioStream);
+				break;
+			case 2:
+			{
+				int subtitle_idx = atoi(value.c_str());
+				/* Normalize any negative value to exactly -1 ("no track"),
+				 * matching the convention used everywhere else. */
+				m_currentSubtitleStream = subtitle_idx >= 0 ? subtitle_idx : -1;
+				m_cachedSubtitleStream = m_currentSubtitleStream;
+				eDebug("[eServiceMP3] construct: e2subtitletrack=%d", m_currentSubtitleStream);
+				break;
+			}
+			}
+			filename_str.erase(ppos, (value_end == std::string::npos ? filename_str.size() : value_end) - ppos);
+			filename = filename_str.c_str();
+		}
+	}
+
 	gchar *uri;
 	gchar *suburi = NULL;
 
@@ -1996,62 +2027,10 @@ eServiceMP3::~eServiceMP3()
 	m_new_dvb_subtitle_page_connection = 0;
 }
 
-int eServiceMP3PendingStopWorkers();
-
 void eServiceMP3::forceAudioReset()
 {
-	/* start() reuses this existing main-loop timer while a previous
-	 * GStreamer pipeline is still releasing the shared hardware sinks.
-	 * Polling here keeps Enigma2 responsive and adds no fixed handover
-	 * delay: playback starts on the first tick after teardown completes. */
-	if (m_state == stIdle && m_gst_playbin)
-	{
-		int pending = eServiceMP3PendingStopWorkers();
-		if (pending > 0)
-		{
-			m_passthrough_fix_timer->start(10, true);
-			return;
-		}
-		eDebug("[eServiceMP3] previous pipeline teardown complete; starting deferred pipeline");
-		start();
-		return;
-	}
-
-	if (!eConfigManager::getConfigBoolValue("config.av.passthrough_fix", false))
-	{
-		setHDAudioNativeEac3ResetPending(m_gst_playbin, false);
-		setHDAudioNativeRetry(m_gst_playbin, -1);
-		m_clear_buffers = true;
-		clearBuffers();
-		return;
-	}
-#ifdef PASSTHROUGH_FIX
-	if (hdAudioNativeEac3ResetPending(m_gst_playbin))
-		setHDAudioNativeEac3ResetPending(m_gst_playbin, false);
-	// Toggle Bluetooth audio off->on->off to force audio driver reinitialization
-	std::string btaudio = CFile::read("/proc/stb/audio/btaudio");
-	if (!btaudio.empty() && btaudio.find("off") != std::string::npos)
-	{
-		eDebug("[eDVBSoftDecoder] Force audio reset: toggling btaudio on and back off");
-		CFile::writeStr("/proc/stb/audio/btaudio", "on");
-		CFile::writeStr("/proc/stb/audio/btaudio", "off");
-	}
-
-	if (btaudio.empty())
-	{
-		int currAudioIndex = getCurrentTrack();
-		selectAudioStream(currAudioIndex, true);
-	}
-#endif
-
 	m_clear_buffers = true;
 	clearBuffers();
-	const int retry_audio = hdAudioNativeRetry(m_gst_playbin);
-	if (retry_audio >= 0)
-	{
-		g_object_set(G_OBJECT(m_gst_playbin), "current-audio", retry_audio, NULL);
-		setHDAudioNativeRetry(m_gst_playbin, -1);
-	}
 }
 
 void eServiceMP3::updateEpgCacheNowNext()
@@ -2133,25 +2112,82 @@ RESULT eServiceMP3::connectEvent(const sigc::slot<void(iPlayableService*,int)> &
 	return 0;
 }
 
+/* See m_start_events_deferred's header comment. Called either immediately,
+ * at READY_TO_PAUSED, for the normal non-deferred case, or later - once -
+ * from tryApplyPendingStartOffset(), for a session that deferred these
+ * because a start offset was pending. */
+void eServiceMP3::fireDeferredStartEvents()
+{
+	m_start_events_deferred = false;
+	m_event(this, evGstreamerStart);
+	if (m_send_ev_start)
+		m_event(this, evStart);
+}
+
+/* Applies a pending "&e2startoffset=" (see the constructor) once the
+ * pipeline is first able to seek reliably - this simple, single-element
+ * playbin pipeline (unlike a manually-assembled decodebin3 one) already has
+ * every sink it needs the moment it first reaches PAUSED_TO_PLAYING, so
+ * unlike a more elaborate pipeline this needs no retry loop: one attempt
+ * here is reliable. Also responsible for firing evResumed once that seek has
+ * actually landed - see evResumed's own doc comment in iservice.h - and for
+ * releasing whatever evStart/evGstreamerStart this session held back for it
+ * (see fireDeferredStartEvents()), whether or not there turned out to be
+ * anything to seek to. */
+void eServiceMP3::tryApplyPendingStartOffset()
+{
+	if (m_pending_start_position < 0)
+	{
+		if (m_start_events_deferred)
+			fireDeferredStartEvents();
+		return;
+	}
+
+	if (m_is_live)
+	{
+		/* Live sources can't seek - drop the request rather than retrying
+		 * forever against a source that will never accept it. */
+		m_pending_start_position = -1;
+		if (m_start_events_deferred)
+			fireDeferredStartEvents();
+		return;
+	}
+
+	pts_t pos = m_pending_start_position;
+	m_pending_start_position = -1;
+	eDebug("[eServiceMP3] tryApplyPendingStartOffset: applying %lld", (long long)pos);
+
+	/*
+	 * Deliberately NOT wrapped in an explicit PAUSE -> (blocking wait) ->
+	 * PLAY: confirmed on device that pattern hangs the whole UI for several
+	 * seconds (the "Main thread is busy" watchdog firing). seekTo()
+	 * already performs the same flushing seek via seekToImpl(), the
+	 * identical, long-proven, non-blocking mechanism every ordinary user
+	 * seek in this class already relies on.
+	 */
+	seekTo(pos);
+
+	/* Tell the outside world the resume seek actually landed and playback is
+	 * running from it, not merely requested - see evResumed's own doc
+	 * comment in iservice.h. */
+	m_event((iPlayableService*)this, evResumed);
+
+	if (m_start_events_deferred)
+		fireDeferredStartEvents();
+}
+
 RESULT eServiceMP3::start()
 {
 	ASSERT(m_state == stIdle);
 
-#ifdef PASSTHROUGH_FIX
-	if (eConfigManager::getConfigBoolValue("config.av.passthrough_fix", false))
-	{
-		int pending = eServiceMP3PendingStopWorkers();
-		if (pending > 0)
-		{
-			eDebug("[eServiceMP3] deferring pipeline start while %d previous teardown(s) release hardware", pending);
-			m_passthrough_fix_timer->start(10, true);
-			return 0;
-		}
-	}
-#endif
-
 	if (m_gst_playbin)
 	{
+		/* See m_start_events_deferred's header comment - only this session's
+		 * evGstreamerStart/evStart (normally fired below at READY_TO_PAUSED)
+		 * need holding back, and only when there's actually a pending start
+		 * offset to apply first. */
+		m_start_events_deferred = m_pending_start_position >= 0;
+
 		eDebug("[eServiceMP3] starting pipeline");
 		GstStateChangeReturn ret;
 		ret = gst_element_set_state (m_gst_playbin, GST_STATE_PLAYING);
@@ -2197,11 +2233,6 @@ RESULT eServiceMP3::start()
 }
 
 static volatile gint s_mp3_stop_workers = 0;
-
-int eServiceMP3PendingStopWorkers()
-{
-	return g_atomic_int_get(&s_mp3_stop_workers);
-}
 
 namespace {
 
@@ -2360,6 +2391,20 @@ void eServiceMP3::disconnectAsyncSignalHandlers()
 RESULT eServiceMP3::stop()
 {
 	m_passthrough_fix_timer->stop();
+	/* A switch still waiting on the pipeline to settle - a fresh pipeline
+	 * session starts its own settling from scratch. */
+	m_audio_switch_deferred = -1;
+	m_audio_switch_flush_phase = AudioSwitchFlushNone;
+	m_audio_switch_flush_resuming = false;
+	m_subtitle_switch_deferred = false;
+	/* A restarted pipeline (see start()/forceAudioReset()) can bring the
+	 * decoder-time register back to an arbitrary/stale value unrelated to
+	 * this baseline, so don't carry it across a stop() - re-arm the one-time
+	 * startup correction for the next start() same as a fresh instance. */
+	m_position_baseline_valid = false;
+	m_position_correction_enabled = true;
+	m_position_baseline_provisional = -1;
+	m_position_baseline_first_seen_us = 0;
 	if (!m_gst_playbin || m_state == stStopped || !m_ref)
 		return -1;
 
@@ -2495,17 +2540,44 @@ RESULT eServiceMP3::getLength(pts_t &pts)
 	return 0;
 }
 
-RESULT eServiceMP3::seekToImpl(pts_t to)
+RESULT eServiceMP3::seekToImpl(pts_t to, bool accurate)
 {
 		/* convert pts to nanoseconds */
 	m_last_seek_pos = to * 11111LL;
-	if (!gst_element_seek (m_gst_playbin, m_currentTrickRatio, GST_FORMAT_TIME, (GstSeekFlags)(GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT),
+	if (!gst_element_seek (m_gst_playbin, m_currentTrickRatio, GST_FORMAT_TIME,
+		(GstSeekFlags)(GST_SEEK_FLAG_FLUSH | (accurate ? GST_SEEK_FLAG_ACCURATE : GST_SEEK_FLAG_KEY_UNIT)),
 		GST_SEEK_TYPE_SET, m_last_seek_pos,
 		GST_SEEK_TYPE_NONE, GST_CLOCK_TIME_NONE))
 	{
 		eDebug("[eServiceMP3] seekTo failed");
 		return -1;
 	}
+
+	/* A seek just happened: from here on the sink/pipeline itself reports
+	 * position correctly (this is what makes a manual seek "fix" the
+	 * display today), so getPlayPosition()'s one-time startup correction is
+	 * no longer needed - permanently disable it rather than recomputing a
+	 * new baseline, so it never touches an already-correct reading again.
+	 *
+	 * But only if that startup correction had actually finished capturing a
+	 * baseline by the time this seek happened - otherwise there was nothing
+	 * working to replace: an automatic seek can happen very early (e.g. an
+	 * auto/forced "resume playback" seek firing ~1s after start, before the
+	 * confirm window above has necessarily elapsed), and disabling
+	 * correction here unconditionally would leave getPlayPosition()
+	 * permanently returning the raw, uncorrected reading for the rest of
+	 * the session - silently reintroducing the exact bug this correction
+	 * exists to fix, with no further seek left to "fix the display" the way
+	 * the comment above describes for the normal case. In that situation,
+	 * leave correction enabled and let it capture its baseline from
+	 * whatever raw readings come after this seek instead - discard any
+	 * in-progress (pre-seek) candidate first, since the position just
+	 * jumped and that candidate is no longer a reading of the same
+	 * starting point. */
+	if (m_position_baseline_valid)
+		m_position_correction_enabled = false;
+	else
+		m_position_baseline_provisional = -1;
 
 	if (getHDAudioAuxState(m_gst_playbin))
 		seekHDAudioAuxPersistent(m_gst_playbin, m_last_seek_pos);
@@ -2620,7 +2692,7 @@ seek_unpause:
 	bool validposition = false;
 	gint64 pos = 0;
 	pts_t pts;
-	if (getPlayPosition(pts) >= 0)
+	if (getRawPlayPosition(pts) >= 0)
 	{
 		validposition = true;
 		pos = pts * 11111LL;
@@ -2656,7 +2728,7 @@ RESULT eServiceMP3::seekRelative(int direction, pts_t to)
 		return -1;
 
 	pts_t ppos;
-	if (getPlayPosition(ppos) < 0) return -1;
+	if (getRawPlayPosition(ppos) < 0) return -1;
 	ppos += to * direction;
 
 	if (ppos < 0)
@@ -2677,7 +2749,12 @@ gint eServiceMP3::match_sinktype(const GValue *velement, const gchar *type)
 	return strcmp(g_type_name(G_OBJECT_TYPE(element)), type);
 }
 
-RESULT eServiceMP3::getPlayPosition(pts_t &pts)
+/* Raw reading, in the same coordinate space gst_element_seek()'s absolute
+ * GST_SEEK_TYPE_SET expects. trickSeek()/seekRelative()/clearBuffers() all
+ * feed this value straight back into a seek, so they must keep using this
+ * (not the corrected getPlayPosition() below) or every relative seek and
+ * trick-play would land off by whatever the display correction is. */
+RESULT eServiceMP3::getRawPlayPosition(pts_t &pts)
 {
 	gint64 pos;
 	pts = 0;
@@ -2689,7 +2766,9 @@ RESULT eServiceMP3::getPlayPosition(pts_t &pts)
 	if ((audioSink || videoSink) && !m_paused)
 	{
 		if (m_sourceinfo.is_audio && videoSink) {
+			eTrace("[eServiceMP3] getRawPlayPosition: emitting get-decoder-time on audioSink (is_audio branch)");
 			g_signal_emit_by_name(audioSink, "get-decoder-time", &pos);
+			eTrace("[eServiceMP3] getRawPlayPosition: get-decoder-time (audioSink) returned pos=%lld", (long long)pos);
 			if (GST_CLOCK_TIME_IS_VALID(pos))
 				got_decoder_time = true;
 		} else if (!m_sourceinfo.is_audio) {
@@ -2697,13 +2776,21 @@ RESULT eServiceMP3::getPlayPosition(pts_t &pts)
 			 * audio is 0 or invalid */
 			/* avoid taking the audio play position if audio sink is in state NULL */
 			if (audioSink) {
+				eTrace("[eServiceMP3] getRawPlayPosition: emitting get-decoder-time on audioSink");
 				g_signal_emit_by_name(audioSink, "get-decoder-time", &pos);
+				eTrace("[eServiceMP3] getRawPlayPosition: get-decoder-time (audioSink) returned pos=%lld", (long long)pos);
 				if (!GST_CLOCK_TIME_IS_VALID(pos) && videoSink)
+				{
+					eTrace("[eServiceMP3] getRawPlayPosition: emitting get-decoder-time on videoSink");
 					g_signal_emit_by_name(videoSink, "get-decoder-time", &pos);
+					eTrace("[eServiceMP3] getRawPlayPosition: get-decoder-time (videoSink) returned pos=%lld", (long long)pos);
+				}
 				if (GST_CLOCK_TIME_IS_VALID(pos))
 					got_decoder_time = true;
 			} else if (videoSink) {
+				eTrace("[eServiceMP3] getRawPlayPosition: emitting get-decoder-time on videoSink (no audioSink)");
 				g_signal_emit_by_name(videoSink, "get-decoder-time", &pos);
+				eTrace("[eServiceMP3] getRawPlayPosition: get-decoder-time (videoSink) returned pos=%lld", (long long)pos);
 				if (GST_CLOCK_TIME_IS_VALID(pos))
 				got_decoder_time = true;
 			}
@@ -2715,15 +2802,169 @@ RESULT eServiceMP3::getPlayPosition(pts_t &pts)
 		* exist but get-decoder-time returns invalid values (e.g. MP4 playback on
 		* some chipsets like HiSilicon), or when no dvb sinks are available at all. */
 		GstFormat fmt = GST_FORMAT_TIME;
-		if (!gst_element_query_position(m_gst_playbin, fmt, &pos))
+		eTrace("[eServiceMP3] getRawPlayPosition: calling gst_element_query_position");
+		gboolean qp_ok = gst_element_query_position(m_gst_playbin, fmt, &pos);
+		eTrace("[eServiceMP3] getRawPlayPosition: gst_element_query_position returned %d, pos=%lld", qp_ok, (long long)pos);
+		if (!qp_ok)
 		{
-			eDebug("[eServiceMP3] gst_element_query_position failed in getPlayPosition");
+			eTrace("[eServiceMP3] gst_element_query_position failed in getPlayPosition");
 			return -1;
 		}
 	}
 
 	/* pos is in nanoseconds. we have 90 000 pts per second. */
 	pts = pos / 11111LL;
+	return 0;
+}
+
+/* Public/display-facing position (iSeekableService, exposed to the UI/OSD).
+ *
+ * On some chipsets/streams, get-decoder-time reads the DVB sink's raw
+ * hardware decoder-time register, which is not guaranteed to be zero-based
+ * at the start of playback (e.g. a stale value from a previous playback
+ * session, or a stream whose PTS domain doesn't start at 0) - even though
+ * actual playback already starts at the real beginning of the stream. A
+ * manual seek reliably "fixes" the displayed position - not by making this
+ * correction recompute itself, but because the sink itself starts reporting
+ * correctly once a real seek has happened. So this correction only ever
+ * applies once, before that first real seek: it captures a baseline and
+ * applies it until seekToImpl() runs for the first time, at which point it
+ * is permanently disabled and getPlayPosition() reverts to returning the
+ * (by then trustworthy) raw value unchanged - it must NOT keep recomputing
+ * a new baseline after every seek.
+ *
+ * The baseline itself is not just latched onto the very first raw reading:
+ * network streams in particular can take a while to buffer/preroll, during
+ * which get-decoder-time/gst_element_query_position() may return a
+ * transient, unrepresentative value (e.g. stuck at 0, or some other
+ * not-yet-locked reading) before the decoder clock genuinely starts
+ * advancing, or may briefly jitter backwards before it locks - latching
+ * onto one of those would bake in a wrong baseline for the rest of this
+ * correction's lifetime. So this waits to see the raw reading hold (not go
+ * backwards) across a short real-time window before trusting it, only then
+ * capturing it as the baseline. Until confirmed, this reports 0 rather than
+ * a baseline computed from an unconfirmed reading.
+ *
+ * The candidate for that baseline is not necessarily first captured here
+ * either: gstBusCall()'s GST_STATE_CHANGE_PAUSED_TO_PLAYING handling seeds
+ * it as soon as the pipeline first reaches PLAYING, rather than leaving the
+ * very first sample to whichever Python UI timer happens to call
+ * getPlayPosition() first. A network/HLS source in particular can sit
+ * PAUSED filling its prefill buffer for a few real seconds before that
+ * transition fires (see the GST_MESSAGE_BUFFERING handling further down),
+ * during which the decoder can already race ahead of real-time on the
+ * queued data - if nothing polled position until after that point, the
+ * first call here would otherwise mistake that already-elapsed offset for
+ * "time zero" and the display would visibly start several seconds in. This
+ * function still seeds its own candidate the same way on its own first
+ * call, as a fallback for any service type/path that does not go through
+ * that state-change handling.
+ *
+ * That confirmation window is real wall-clock time (g_get_monotonic_time()),
+ * not a number of getPlayPosition() calls: this is polled independently by
+ * several UI timers (position display, subtitle renderer, timeshift, ...)
+ * all sharing this same state, so a call-count gate's real-time cost is
+ * unpredictable - depending on how those pollers happen to interleave, or
+ * how coarsely the underlying decoder-time/position query updates, it can
+ * end up spanning several real seconds. Every one of those seconds would
+ * then be baked into m_position_baseline as a permanent offset - visibly,
+ * playback appearing to "start" several seconds in rather than at 0. Using
+ * a small, fixed real-time bound avoids that regardless of polling pattern.
+ * The baseline itself is the reading from when the candidate was first
+ * seen, not from when confirmation completed a short time later, so the
+ * (bounded, small) confirmation delay itself is not baked in either.
+ *
+ * getRawPlayPosition() itself is left untouched - trickSeek()/
+ * seekRelative()/clearBuffers() depend on its value being in the same
+ * coordinate space gst_element_seek() expects, so the correction below is
+ * applied only here, at the point the position is actually reported. */
+RESULT eServiceMP3::getPlayPosition(pts_t &pts)
+{
+	pts_t raw;
+	RESULT res = getRawPlayPosition(raw);
+	if (res < 0)
+		return res;
+
+	if (!m_position_correction_enabled)
+	{
+		pts = raw;
+		return 0;
+	}
+
+	if (!m_position_baseline_valid)
+	{
+		static const gint64 confirm_window_us = 300 * 1000; /* 300ms */
+		/*
+		 * How much faster than real time the raw reading is still allowed to
+		 * advance during the confirm window before this treats it as "still
+		 * catching up" rather than genuinely settled. Not 1x: a network
+		 * source in particular can legitimately decode a short burst of
+		 * already-buffered/queued data faster than real time even once
+		 * essentially caught up, and false-restarting on every such blip
+		 * would mean the window never actually elapses. 3x is loose enough
+		 * to tolerate that while still catching the multi-second-per-300ms
+		 * bursts that come from genuinely still buffering/prerolling.
+		 */
+		static const gint64 max_advance_multiple = 3;
+		gint64 now = g_get_monotonic_time();
+
+		/* No candidate yet, or the reading has gone backwards since the
+		 * candidate was captured (still prerolling, or a jittery/
+		 * not-yet-locked clock) - (re)start the candidate from this
+		 * reading, timestamped now. */
+		if (m_position_baseline_provisional < 0 || raw < m_position_baseline_provisional)
+		{
+			m_position_baseline_provisional = raw;
+			m_position_baseline_first_seen_us = now;
+			pts = 0;
+			return 0;
+		}
+
+		gint64 elapsed_us = now - m_position_baseline_first_seen_us;
+		/* raw and m_position_baseline_provisional are both 90kHz pts units
+		 * (see getRawPlayPosition()); convert their difference to the same
+		 * microsecond scale as elapsed_us for the comparison below. */
+		gint64 advance_us = (raw - m_position_baseline_provisional) * 1000000LL / 90000LL;
+
+		/* The reading never went backwards, but it's still advancing much
+		 * faster than real time - e.g. still burst-decoding buffered/queued
+		 * data on a network source. Left alone, the candidate captured at
+		 * the start of this window is already stale by the time the window
+		 * elapses and gets confirmed below: playback has since raced ahead
+		 * of it, so the confirmed baseline ends up short of where decoding
+		 * actually was at that moment, and every position report for the
+		 * rest of the session comes out permanently offset by however much
+		 * extra distance was covered during this one window (confirmed on
+		 * device: a multi-second offset on stream startup, e.g. "starts at
+		 * 4 seconds" instead of 0). Restart the candidate from this newer,
+		 * still-advancing reading instead of letting a stale one confirm -
+		 * same treatment as an outright backward jump above. */
+		if (elapsed_us > 0 && advance_us > elapsed_us * max_advance_multiple)
+		{
+			m_position_baseline_provisional = raw;
+			m_position_baseline_first_seen_us = now;
+			pts = 0;
+			return 0;
+		}
+
+		if (elapsed_us < confirm_window_us)
+		{
+			pts = 0;
+			return 0;
+		}
+
+		/* Confirmed: the reading has neither gone backwards nor raced ahead
+		 * of real time for a full confirm_window_us stretch, so it is
+		 * trustworthy. Use the candidate as first captured, not "raw" here -
+		 * the time spent confirming must not itself become part of the
+		 * baseline. */
+		m_position_baseline = m_position_baseline_provisional;
+		m_position_baseline_valid = true;
+	}
+
+	pts = raw - m_position_baseline;
+	if (pts < 0)
+		pts = 0;
 	return 0;
 }
 
@@ -3606,19 +3847,32 @@ void eServiceMP3::clearBuffers(bool force)
 	}
 
 	eDebug ("[eServiceMP3] Clear Buffers!");
+
 	bool validposition = false;
 	pts_t ppos = 0;
-	if (getPlayPosition(ppos) >= 0)
+	eDebug("[eServiceMP3] clearBuffers: calling getRawPlayPosition");
+	int rawpos_res = getRawPlayPosition(ppos);
+	eDebug("[eServiceMP3] clearBuffers: getRawPlayPosition returned %d, ppos=%lld", rawpos_res, (long long)ppos);
+	if (rawpos_res >= 0)
 	{
 		validposition = true;
-		ppos -= 9000; /* seek back ~100ms instead of 1s for faster audio switch */
+		ppos -= 90; /* seek back ~1ms instead of 1s for faster audio switch */
 		if (ppos < 0)
 			ppos = 0;
 	}
 	if (validposition)
 	{
-		/* flush */
-		int res = seekTo(ppos);
+		/* flush - accurate, not seekTo()'s usual key-unit, so this doesn't
+		 * snap to the nearest keyframe; see flushNearCurrentPosition()'s
+		 * header comment in the .h for why that matters here. Calls
+		 * seekToImpl() directly (bypassing the public seekTo()) only to
+		 * pass accurate=true; the two resets below are what seekTo() would
+		 * otherwise have done for us. */
+		m_prev_decoder_time = -1;
+		m_decoder_time_valid_state = 0;
+		eDebug("[eServiceMP3] clearBuffers: calling seekToImpl(%lld, accurate)", (long long)ppos);
+		int res = seekToImpl(ppos, true);
+		eDebug("[eServiceMP3] clearBuffers: seekToImpl returned %d", res);
 		if (res == -1)
 		{
 			m_clear_buffers = false;
@@ -3630,6 +3884,208 @@ void eServiceMP3::clearBuffers(bool force)
 	}
 }
 
+namespace {
+
+struct DeferredFlushCtx
+{
+	gdouble rate;
+	gint64 position_ns;
+};
+
+/*
+ * Runs on a GStreamer pool thread - see flushNearCurrentPosition()'s own
+ * comment in the .h for why gst_element_seek() must never be called
+ * directly on the E2 main thread here: confirmed on device to block for
+ * several seconds (a hard UI freeze, since this is normally reached from a
+ * key-press handler) when it races the text/audio selector's own
+ * active-pad switch issued moments earlier by applySubtitleStreamSwitch()/
+ * selectAudioStream() - a thread blocked in the (sync=TRUE) subtitle sink's
+ * clock wait holds a lock this seek's FLUSH_START also needs, and only that
+ * FLUSH_START would normally release it. Dispatching the call itself here
+ * keeps that stall off the UI thread; the switch still completes once the
+ * pool thread's call returns; ctx is freed by the GDestroyNotify passed to
+ * gst_element_call_async().
+ */
+void doDeferredFlush(GstElement *pipeline, gpointer user_data)
+{
+	DeferredFlushCtx *ctx = (DeferredFlushCtx *)user_data;
+	/*
+	 * GST_SEEK_FLAG_KEY_UNIT, not ACCURATE: confirmed on device that
+	 * ACCURATE here left subtitle timing permanently skewed for the rest
+	 * of the session after any actual track-to-track switch (see
+	 * flushNearCurrentPosition()'s own comment in the .h) - almost
+	 * certainly this hardware's decoder-time reporting disagreeing with
+	 * itself across an accurate seek in some way pushSubtitles()'s raw-PTS
+	 * comparison then inherits permanently. Unlike doAudioSwitchFlushSeek()
+	 * (which deliberately avoids KEY_UNIT to stop a keyframe snap from
+	 * visibly jumping the video), avoiding that jump was never a
+	 * requirement here - only avoiding the hang/freeze subtitle switching
+	 * used to cause, which this still does regardless of which seek flag
+	 * is used.
+	 */
+	if (!gst_element_seek(pipeline, ctx->rate, GST_FORMAT_TIME,
+		(GstSeekFlags)(GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT),
+		GST_SEEK_TYPE_SET, ctx->position_ns,
+		GST_SEEK_TYPE_NONE, GST_CLOCK_TIME_NONE))
+		eDebug("[eServiceMP3] doDeferredFlush: seek failed");
+}
+
+} // namespace
+
+/* See flushNearCurrentPosition()'s own header comment in the .h. */
+bool eServiceMP3::flushNearCurrentPosition()
+{
+	if (!m_gst_playbin)
+		return false;
+	pts_t ppos = 0;
+	if (getRawPlayPosition(ppos) < 0)
+		return false;
+	ppos -= 90; /* seek back ~1ms - enough to force a genuine reposition
+	             * (and so a real re-read/re-emit at this point) without
+	             * perceptibly moving playback. */
+	if (ppos < 0)
+		ppos = 0;
+	m_prev_decoder_time = -1;
+	m_decoder_time_valid_state = 0;
+
+	DeferredFlushCtx *ctx = g_new(DeferredFlushCtx, 1);
+	ctx->rate = m_currentTrickRatio;
+	ctx->position_ns = ppos * 11111LL; /* pts -> ns, same conversion seekToImpl() uses */
+	gst_element_call_async(m_gst_playbin, doDeferredFlush, ctx, (GDestroyNotify)g_free);
+	return true;
+}
+
+/* See m_audio_switch_flush_phase's own header comment in the .h. */
+void eServiceMP3::beginAudioSwitchPauseFlush()
+{
+	/* !m_initial_start: the very first (automatic, startup) audio-track
+	 * selection, still within the same GST_STATE_CHANGE_PAUSED_TO_PLAYING
+	 * handling that's about to seed the position-baseline candidate a few
+	 * lines below this call, at the exact moment the pipeline first reaches
+	 * PLAYING (see its own comment there). There is nothing stale to flush
+	 * away yet anyway - nothing has played before this first selection -
+	 * so skip the whole pause/seek/resume dance here and leave the plain
+	 * "current-audio" set above as the only action, exactly like
+	 * clearBuffers() (its "!m_initial_start" check) already did for this
+	 * same call site before this mechanism existed. Without this guard the
+	 * pause/seek/resume cycle instead runs microseconds after the pipeline
+	 * first reaches PLAYING, racing that baseline seeding and corrupting it
+	 * for the rest of the session - confirmed on device: on a fresh start
+	 * (no "&e2startoffset=" resume - see tryApplyPendingStartOffset(),
+	 * whose own seek is what naturally fires next in that case and so
+	 * masked this) position-baseline correction stopped applying at all. */
+	if (!m_gst_playbin || m_is_live || !m_initial_start)
+		return;
+
+	m_audio_switch_flush_resume = !m_paused;
+
+	if (m_paused)
+	{
+		/* Already paused (by the user): GStreamer won't fire a new
+		 * PLAYING_TO_PAUSED transition for a state it's already in (see
+		 * gstBusCall()'s "old_state == new_state" filter), so the
+		 * WaitPaused phase below would never get triggered from here.
+		 * Nothing to wait for - go straight to the seek. */
+		m_audio_switch_flush_phase = AudioSwitchFlushWaitSeek;
+		doAudioSwitchFlushSeek();
+		return;
+	}
+
+	eDebug("[eServiceMP3] beginAudioSwitchPauseFlush: pausing for flush");
+	m_audio_switch_flush_phase = AudioSwitchFlushWaitPaused;
+	gst_element_set_state(m_gst_playbin, GST_STATE_PAUSED);
+}
+
+/* See m_audio_switch_flush_phase's own header comment in the .h. */
+void eServiceMP3::doAudioSwitchFlushSeek()
+{
+	pts_t ppos = 0;
+	if (getRawPlayPosition(ppos) < 0)
+	{
+		eDebug("[eServiceMP3] doAudioSwitchFlushSeek: no valid position, aborting pause-flush");
+		m_audio_switch_flush_phase = AudioSwitchFlushNone;
+		if (m_audio_switch_flush_resume)
+		{
+			/* See m_audio_switch_flush_resuming's own comment in the .h -
+			 * without this, the PLAYING transition below would fall through
+			 * to gstBusCall()'s unconditional selectAudioStream(m_currentAudioStream)
+			 * re-apply, which would just retry this same sequence forever. */
+			m_audio_switch_flush_resuming = true;
+			gst_element_set_state(m_gst_playbin, GST_STATE_PLAYING);
+		}
+		return;
+	}
+	m_prev_decoder_time = -1;
+	m_decoder_time_valid_state = 0;
+	eDebug("[eServiceMP3] doAudioSwitchFlushSeek: seeking to %lld (accurate)", (long long)ppos);
+	/* Safe to call synchronously here (unlike flushNearCurrentPosition()'s
+	 * subtitle-switch equivalent - see its own comment): the pipeline is
+	 * confirmed PAUSED at this point, so there is no streaming thread
+	 * blocked in a sink's clock wait (that only happens with a running
+	 * clock, i.e. in PLAYING) for this seek's FLUSH_START to race. */
+	if (seekToImpl(ppos, true) == -1)
+	{
+		/*
+		 * Seek rejected outright (confirmed on device: some sources report
+		 * m_is_live == false yet still reject an in-place seek exactly like
+		 * a genuinely live/unseekable one would) - the pipeline is left
+		 * PAUSED here with no seek in flight, so no GST_MESSAGE_ASYNC_DONE
+		 * will ever arrive to resume it via m_audio_switch_flush_resume:
+		 * left alone this is a permanently frozen/silent pipeline (confirmed
+		 * on device). Same recovery every other seek-rejected case in this
+		 * class already falls back to: restart the whole service instead of
+		 * leaving it stuck on a switch that never actually took effect.
+		 */
+		eDebug("[eServiceMP3] doAudioSwitchFlushSeek: seek rejected, restarting service to resync");
+		m_audio_switch_flush_phase = AudioSwitchFlushNone;
+		m_clear_buffers = false;
+		m_send_ev_start = false;
+		stop();
+		m_state = stIdle;
+		start();
+		return;
+	}
+	/* GST_MESSAGE_ASYNC_DONE (gstBusCall()) resumes PLAYING - if
+	 * m_audio_switch_flush_resume - once this seek's preroll completes. */
+}
+
+namespace {
+
+/*
+ * True only when the pipeline is fully settled in PLAYING - no state change
+ * of any kind in flight. Non-blocking (timeout 0): a query, never a wait.
+ * selectAudioStream() defers its switch here instead of ever attempting it
+ * against an unsettled pipeline, since setting "current-audio" pushes a
+ * GST_EVENT_RECONFIGURE upstream synchronously (see
+ * gst_input_selector_set_active_pad() in GStreamer's own source), and doing
+ * that while some upstream element is itself mid state change is untested
+ * territory this class would rather not risk.
+ */
+bool pipelineSettledInPlaying(GstElement *pipeline)
+{
+	if (!pipeline)
+		return false;
+	GstState state = GST_STATE_NULL, pending = GST_STATE_VOID_PENDING;
+	gst_element_get_state(pipeline, &state, &pending, 0);
+	return state == GST_STATE_PLAYING && pending == GST_STATE_VOID_PENDING;
+}
+
+} // namespace
+
+/* See applySubtitleStreamSwitch()'s own header comment in the .h. */
+void eServiceMP3::applySubtitleStreamSwitch()
+{
+	g_object_set(G_OBJECT(m_gst_playbin), "current-text", m_currentSubtitleStream, NULL);
+	if (m_subtitle_switch_needs_flush)
+	{
+		if (!m_is_live && !flushNearCurrentPosition())
+			eDebug("[eServiceMP3] applySubtitleStreamSwitch: flush failed - new subtitle stream may not "
+				"appear until its own next cue");
+	}
+	eDebug("[eServiceMP3] applySubtitleStreamSwitch: switched to subtitle stream %i (generation %d)",
+		m_currentSubtitleStream, m_subtitle_generation.load());
+}
+
 int eServiceMP3::selectAudioStream(int i, bool skipAudioFix)
 {
 	/* Validate index against our own track list to avoid relying solely on
@@ -3637,9 +4093,6 @@ int eServiceMP3::selectAudioStream(int i, bool skipAudioFix)
 	 * GStreamer is in a transitional state. */
 	if (hdAudioAuxRetryBlocked(m_gst_playbin))
 		setHDAudioAuxRetryBlocked(m_gst_playbin, false);
-	const int pending_native_retry = hdAudioNativeRetry(m_gst_playbin);
-	if (pending_native_retry >= 0 && pending_native_retry != i)
-		setHDAudioNativeRetry(m_gst_playbin, -1);
 
 	if (i < 0 || i >= (int)m_audioStreams.size())
 	{
@@ -3647,14 +4100,54 @@ int eServiceMP3::selectAudioStream(int i, bool skipAudioFix)
 		return -1;
 	}
 
+	/*
+	 * Whether this actually changes which track is selected, captured before
+	 * anything below can touch m_currentAudioStream. gstBusCall()'s
+	 * GST_STATE_CHANGE_PAUSED_TO_PLAYING handling unconditionally re-applies
+	 * m_currentAudioStream after *any* PAUSED->PLAYING transition, including
+	 * one that had nothing to do with an actual audio switch - a subtitle
+	 * switch's own flushNearCurrentPosition() seek, for instance, can itself
+	 * produce such a transition (confirmed on device), which lands right
+	 * back here. There is no stale old-track data to clear when the track
+	 * never changed, so below this skips the flush/passthrough-reset work
+	 * for a same-track call - without that guard it's not just redundant,
+	 * it chains into a whole extra pause/seek/resume cycle every time
+	 * ("double flushing" on every subtitle switch, confirmed on device).
+	 * The defensive current-audio re-set/readback right below is still done
+	 * either way - cheap, and guards against GStreamer's own selection
+	 * having drifted independently of this bookkeeping.
+	 */
+	const bool isActualAudioSwitch = (i != m_currentAudioStream);
+
+	/*
+	 * Setting "current-audio" while a streaming thread is stuck inside a
+	 * sink (mid pause, buffering, or re-preroll after a seek - i.e.
+	 * whenever the pipeline isn't settled in PLAYING) only records a
+	 * pending selector switch that hasn't committed yet, and can deadlock
+	 * the pipeline - confirmed on device, and fixed independently upstream
+	 * in openatv/enigma2#3913 ("servicemp3: fix audio track switch stall
+	 * and subtitle switch deadlock"). Defer the whole switch instead of
+	 * ever attempting it against an unsettled pipeline; gstBusCall()'s
+	 * GST_STATE_CHANGE_PAUSED_TO_PLAYING handling retries it the moment the
+	 * pipeline next settles. skipAudioFix callers (trickSeek()'s stuck-pipeline
+	 * recovery, forceAudioReset()) are internal recovery paths that must
+	 * still act immediately, not queue behind this.
+	 */
+	if (!skipAudioFix && i != m_currentAudioStream && !pipelineSettledInPlaying(m_gst_playbin))
+	{
+		eDebug("[eServiceMP3] selectAudioStream: pipeline not settled in PLAYING, deferring switch to stream %d", i);
+		m_audio_switch_deferred = i;
+		return 0;
+	}
+	if (!skipAudioFix)
+		m_audio_switch_deferred = -1;
+
 	const HDAudioAuxMode aux_mode = !m_sourceinfo.is_streaming ?
 		hdAudioAuxModeForCodec(m_audioStreams[i].codec) : hdAuxNone;
 	HDAudioAuxState *active_aux = getHDAudioAuxState(m_gst_playbin);
-	const HDAudioAuxMode previous_aux_mode = active_aux ? active_aux->mode : hdAuxNone;
 	const bool native_eac3_to_aux = !active_aux && aux_mode == hdAuxAC3 &&
 		m_currentAudioStream >= 0 && m_currentAudioStream < (int)m_audioStreams.size() &&
 		m_audioStreams[m_currentAudioStream].type == atEAC3;
-	bool native_handoff_reset = false;
 
 	if (aux_mode != hdAuxNone || active_aux)
 	{
@@ -3779,11 +4272,6 @@ int eServiceMP3::selectAudioStream(int i, bool skipAudioFix)
 		else
 		{
 			restoreHDAudioMainSink(m_gst_playbin, main_audio_sink, restore_flags);
-#ifdef PASSTHROUGH_FIX
-			if (previous_aux_mode == hdAuxAC3 && m_audioStreams[i].type == atEAC3 &&
-				eConfigManager::getConfigBoolValue("config.av.passthrough_fix", false))
-				native_handoff_reset = true;
-#endif
 			g_object_set(G_OBJECT(m_gst_playbin), "current-audio", i, NULL);
 			if (main_audio_sink)
 				gst_object_unref(main_audio_sink);
@@ -3793,16 +4281,11 @@ int eServiceMP3::selectAudioStream(int i, bool skipAudioFix)
 		setHDAudioAuxReconfiguring(m_gst_playbin, false);
 	}
 
-	int current_audio, current_audio_orig;
-	g_object_get (G_OBJECT (m_gst_playbin), "current-audio", &current_audio_orig, NULL);
+	int current_audio;
 	g_object_set (G_OBJECT (m_gst_playbin), "current-audio", i, NULL);
 	g_object_get (G_OBJECT (m_gst_playbin), "current-audio", &current_audio, NULL);
 	if (current_audio != i)
 	{
-#ifdef PASSTHROUGH_FIX
-		if (native_handoff_reset)
-			setHDAudioNativeRetry(m_gst_playbin, i);
-#endif
 		/* GStreamer may be in a transitional state and hasn't applied the
 		 * property yet. Since we validated the index ourselves, trust the set. */
 		eDebug ("[eServiceMP3] selectAudioStream: readback returned %d (expected %d), trusting range-validated set", current_audio, i);
@@ -3815,48 +4298,61 @@ int eServiceMP3::selectAudioStream(int i, bool skipAudioFix)
 			eDebug ("[eServiceMP3] switched to audio stream %i", current_audio);
 			m_currentAudioStream = i;
 			m_event((iPlayableService*)this, evUpdatedInfo);
-#ifdef PASSTHROUGH_FIX
-			if (native_handoff_reset)
-			{
-				setHDAudioNativeEac3ResetPending(m_gst_playbin, true);
-				m_passthrough_fix_timer->stop();
-				m_passthrough_fix_timer->start(300, true);
-			}
-			else
-			{
-				GstPad* pad = 0;
-				g_signal_emit_by_name (m_gst_playbin, "get-audio-pad", i, &pad);
-				GstCaps* caps = gst_pad_get_current_caps(pad);
-				gst_object_unref(pad);
-				if (caps) {
-					GstStructure* str = gst_caps_get_structure(caps, 0);
-					const gchar *g_type = gst_structure_get_name(str);
-					audiotype_t apidtype = gstCheckAudioPad(str);
-					gst_caps_unref(caps);
-					if (apidtype == atAC3 || apidtype == atEAC3 || apidtype == atAAC || apidtype == atUnknown || apidtype == atPCM) {
-						std::string pass = CFile::read("/proc/stb/audio/ac3");
-						if (replace_all(replace_all(pass, "\r", ""), "\n", "") == "passthrough")
-						{
-							if (m_clear_buffers)
-							{
-								if (!hdAudioNativeEac3ResetPending(m_gst_playbin))
-								{
-									m_passthrough_fix_timer->stop();
-									m_passthrough_fix_timer->start(apidtype == atEAC3 && i > 0 && current_audio_orig > -1 ? 2000 : 300, true);
-								}
-							}
-						}
-						else
-							clearBuffers();
-					}
-					else
-						clearBuffers();
-				}
-			}
-#else
-			clearBuffers();
-#endif
 			setCacheEntry(true, i);
+			if (isActualAudioSwitch)
+			{
+				/*
+				 * beginAudioSwitchPauseFlush() is a no-op for a live source
+				 * (see its own m_is_live guard) - its pause/wait-for-PAUSED/
+				 * accurate-seek/resume state machine assumes a source that's
+				 * always seekable, which a genuinely live broadcast is not.
+				 * isCurrentlySeekable() is otherwise still a stub that always
+				 * reports "seekable" (see its own comment), so m_is_live is
+				 * the only real non-seekable signal this class has.
+				 *
+				 * Some "live" sources (a timeshift/catchup-capable IPTV
+				 * service, confirmed in the wild - see
+				 * tryApplyPendingStartOffset()'s own comment on the same
+				 * distinction) can still accept a seek even though m_is_live
+				 * is set, so try a small backward flushing keyframe seek
+				 * first - cheap, and just forces a genuine reposition to cut
+				 * over to the new track instead of waiting for whatever the
+				 * old track already queued (our own queue, plus
+				 * dvbaudiosink's hardware ring buffer) to drain on its own.
+				 * Only fall back to restarting the whole service - visibly
+				 * disruptive, and confirmed on device to occasionally leave
+				 * tracks re-enumerated in a different order or the pipeline
+				 * silent/frozen after a fresh cold reselection - when that
+				 * seek is flat-out rejected, i.e. genuinely not seekable.
+				 */
+				if (m_is_live)
+				{
+					pts_t ppos = 0;
+					int seek_res = -1;
+					if (getRawPlayPosition(ppos) >= 0)
+					{
+						ppos -= 9000; /* seek back ~100ms, same margin
+						               * clearBuffers() used for a live audio
+						               * switch before it started skipping
+						               * live sources outright */
+						if (ppos < 0)
+							ppos = 0;
+						seek_res = seekTo(ppos);
+					}
+
+					if (seek_res == -1)
+					{
+						eDebug("[eServiceMP3] selectAudioStream: live source, flushing keyframe seek unavailable/rejected, restarting service for audio-track switch");
+						m_clear_buffers = false;
+						m_send_ev_start = false;
+						stop();
+						m_state = stIdle;
+						start();
+					}
+					return 0;
+				}
+				beginAudioSwitchPauseFlush();
+			}
 		}
 		return 0;
 	}
@@ -3992,9 +4488,10 @@ void eServiceMP3::gstBusCall(GstMessage *msg)
 				case GST_STATE_CHANGE_READY_TO_PAUSED:
 				{
 					m_state = stRunning;
-					m_event(this, evGstreamerStart);
-					if (m_send_ev_start)
-						m_event(this, evStart);
+					if (m_start_events_deferred)
+						eDebug("[eServiceMP3] deferring evGstreamerStart/evStart until pending start offset is applied");
+					else
+						fireDeferredStartEvents();
 					GValue result = { 0, };
 					GstIterator *children;
 					subsink = gst_bin_get_by_name(GST_BIN(m_gst_playbin), "subtitle_sink");
@@ -4006,27 +4503,6 @@ void eServiceMP3::gstBusCall(GstMessage *msg)
 						 * Then we do aditional sync of subtitles if they arrive ahead of PTS
 						 */
 						g_object_set (G_OBJECT (subsink), "ts-offset", -2LL * GST_SECOND, NULL);
-#ifdef GSTREAMER_SUBTITLE_SYNC_MODE_BUG
-						/*
-						 * HACK: disable sync mode for now, gstreamer suffers from a bug causing sparse streams to loose sync, after pause/resume / skip
-						 * see: https://bugzilla.gnome.org/show_bug.cgi?id=619434
-						 * Sideeffect of using sync=false is that we receive subtitle buffers (far) ahead of their
-						 * display time.
-						 * Not too far ahead for subtitles contained in the media container.
-						 * But for external srt files, we could receive all subtitles at once.
-						 * And not just once, but after each pause/resume / skip.
-						 * So as soon as gstreamer has been fixed to keep sync in sparse streams, sync needs to be re-enabled.
-						 */
-						g_object_set (G_OBJECT (subsink), "sync", FALSE, NULL);
-#endif
-#if 0
-						/* we should not use ts-offset to sync with the decoder time, we have to do our own decoder timekeeping */
-						g_object_set (G_OBJECT (subsink), "ts-offset", -2LL * GST_SECOND, NULL);
-						/* late buffers probably will not occur very often */
-						g_object_set (G_OBJECT (subsink), "max-lateness", 0LL, NULL);
-						/* avoid prerolling (it might not be a good idea to preroll a sparse stream) */
-						g_object_set (G_OBJECT (subsink), "async", TRUE, NULL);
-#endif
 						eDebug("[eServiceMP3] subsink properties set!");
 						gst_object_unref(subsink);
 					}
@@ -4079,6 +4555,29 @@ void eServiceMP3::gstBusCall(GstMessage *msg)
 				case GST_STATE_CHANGE_PAUSED_TO_PLAYING:
 				{
 					m_paused = false;
+
+					if (m_subtitle_switch_deferred && pipelineSettledInPlaying(m_gst_playbin))
+					{
+						/* An enableSubtitles() call had to defer this same way
+						 * - see its own comment. The audio-selector switch
+						 * below is independent of this text-selector one, so
+						 * this runs unconditionally rather than joining that
+						 * if/else-if chain. */
+						m_subtitle_switch_deferred = false;
+						eDebug("[eServiceMP3] applying deferred subtitle switch to stream %d", m_currentSubtitleStream);
+						applySubtitleStreamSwitch();
+					}
+
+					/* Consumed unconditionally, regardless of which branch of
+					 * the audio if/else-if chain below actually ends up
+					 * running: a switch deferred (m_audio_switch_deferred)
+					 * while this pause-flush was still resuming still takes
+					 * priority below, same as ever, but the flag must not be
+					 * left set for some later, unrelated PLAYING transition
+					 * to find - see its own comment in the .h. */
+					bool audio_switch_flush_was_resuming = m_audio_switch_flush_resuming;
+					m_audio_switch_flush_resuming = false;
+
 					if (hdAudioAuxRetryBlocked(m_gst_playbin))
 					{
 					}
@@ -4088,6 +4587,29 @@ void eServiceMP3::gstBusCall(GstMessage *msg)
 					}
 					else if (hdAudioAuxReconfiguring(m_gst_playbin))
 					{
+					}
+					else if (m_audio_switch_deferred >= 0)
+					{
+						/* A selectAudioStream() call had to defer this same
+						 * way - see its own comment. Re-run it now that the
+						 * pipeline just reached PLAYING; it re-checks
+						 * pipelineSettledInPlaying() itself (this message can
+						 * arrive with another state change already pending
+						 * right behind it), so this may defer again rather
+						 * than apply. */
+						int deferred_audio = m_audio_switch_deferred;
+						m_audio_switch_deferred = -1;
+						eDebug("[eServiceMP3] applying deferred audio switch to stream %d", deferred_audio);
+						selectAudioStream(deferred_audio);
+					}
+					else if (audio_switch_flush_was_resuming)
+					{
+						/* This PLAYING transition is beginAudioSwitchPauseFlush()'s
+						 * own resume, not a real pause/resume or startup -
+						 * current-audio is already exactly right (that's
+						 * what just got paused and seeked for); reselecting
+						 * it here would only restart the whole pause-flush-
+						 * resume sequence, forever. */
 					}
 					else if (m_currentAudioStream < 0)
 					{
@@ -4140,8 +4662,39 @@ void eServiceMP3::gstBusCall(GstMessage *msg)
 						selectAudioStream(m_currentAudioStream);
 					}
 					m_clear_buffers = false;
+
+					/* Applies a pending "&e2startoffset=" (see the constructor
+					 * and tryApplyPendingStartOffset()'s own comment) as soon as
+					 * the pipeline is first able to seek reliably, then fires
+					 * evResumed and whatever evStart/evGstreamerStart this
+					 * session held back for it - see fireDeferredStartEvents(). */
+					tryApplyPendingStartOffset();
+
 					if (!m_initial_start)
 					{
+						/* Seed the startup position-baseline candidate right here,
+						 * at the exact moment the pipeline first reaches PLAYING,
+						 * rather than leaving it to whenever some Python UI timer
+						 * happens to make its first getPlayPosition() call. On a
+						 * network/HLS source in particular, the pipeline can sit in
+						 * PAUSED filling its prefill buffer for a few real seconds
+						 * (see the GST_MESSAGE_BUFFERING handling below) before this
+						 * transition ever fires - by the time it does, the decoder
+						 * may already be several real seconds into decoding queued
+						 * data. If getPlayPosition() isn't polled again until after
+						 * that (OSD not up yet, a timer's startup delay, screen
+						 * construction order - all outside this class's control),
+						 * its first call would otherwise capture that already
+						 * elapsed offset as "time zero", and the position display
+						 * would visibly start several seconds in rather than at 0.
+						 * Sampling here instead ties the candidate to the pipeline's
+						 * own state, not to how promptly some poller reacts to it. */
+						pts_t seed_raw;
+						if (getRawPlayPosition(seed_raw) >= 0)
+						{
+							m_position_baseline_provisional = seed_raw;
+							m_position_baseline_first_seen_us = g_get_monotonic_time();
+						}
 						m_initial_start = true;
 					}
 					m_event((iPlayableService*)this, evGstreamerPlayStarted);
@@ -4149,6 +4702,15 @@ void eServiceMP3::gstBusCall(GstMessage *msg)
 				case GST_STATE_CHANGE_PLAYING_TO_PAUSED:
 				{
 					m_paused = true;
+					if (m_audio_switch_flush_phase == AudioSwitchFlushWaitPaused)
+					{
+						/* beginAudioSwitchPauseFlush()'s own PAUSED request
+						 * just landed - run the seek step now that there's
+						 * no streaming thread left that could still be
+						 * blocked mid-PLAYING for it to race. */
+						m_audio_switch_flush_phase = AudioSwitchFlushWaitSeek;
+						doAudioSwitchFlushSeek();
+					}
 				}	break;
 				case GST_STATE_CHANGE_PAUSED_TO_READY:
 				{
@@ -4296,6 +4858,26 @@ void eServiceMP3::gstBusCall(GstMessage *msg)
 			if(GST_MESSAGE_SRC(msg) != GST_OBJECT(m_gst_playbin))
 				break;
 
+			if (m_audio_switch_flush_phase == AudioSwitchFlushWaitSeek)
+			{
+				/* doAudioSwitchFlushSeek()'s seek just finished prerolling
+				 * at the target position - the whole point of pausing
+				 * first (see m_audio_switch_flush_phase's own comment) was
+				 * for this to land invisibly, with nothing to resume
+				 * displaying until it's already sitting on the right
+				 * frame. */
+				eDebug("[eServiceMP3] audio switch pause-flush: seek prerolled, %s",
+					m_audio_switch_flush_resume ? "resuming" : "staying paused");
+				m_audio_switch_flush_phase = AudioSwitchFlushNone;
+				if (m_audio_switch_flush_resume)
+				{
+					/* Consumed by, and explained at, gstBusCall()'s
+					 * GST_STATE_CHANGE_PAUSED_TO_PLAYING handling. */
+					m_audio_switch_flush_resuming = true;
+					gst_element_set_state(m_gst_playbin, GST_STATE_PLAYING);
+				}
+			}
+
 			if (m_send_ev_start)
 			{
 				gint i, n_video = 0, n_audio = 0, n_text = 0;
@@ -4437,8 +5019,21 @@ void eServiceMP3::gstBusCall(GstMessage *msg)
 						audio.codec = "DTS 96/24";
 					else if (!strcmp(g_type, "audio/x-dtshd") || !strcmp(g_type, "audio/dtshd") || meta_dtshd)
 						audio.codec = "DTS-HD";
-					else if (!strcmp(g_type, "audio/x-dts") || !strcmp(g_type, "audio/dts") ||
-						(audio_meta_lower && strstr(audio_meta_lower, "dts")))
+					else if (!strcmp(g_type, "audio/x-dts") || !strcmp(g_type, "audio/dts"))
+						/*
+						 * No bare strstr(audio_meta_lower, "dts") fallback here,
+						 * unlike the more specific meta_dts* variants above (which
+						 * only ever refine an already-g_type-confirmed DTS-family
+						 * stream into a more specific label - every other codec's
+						 * base identification above this point requires an exact
+						 * g_type match too). A bare "dts" substring match against
+						 * the full caps dump in audio_meta_lower is far too broad:
+						 * ADTS-framed AAC (stream-format=(string)adts - the normal
+						 * AAC framing for MPEG-TS/HLS, i.e. most network/IPTV
+						 * sources) contains "dts" as a literal substring of "adts",
+						 * so every such stream was being mislabeled DTS regardless
+						 * of its real codec.
+						 */
 						audio.codec = "DTS";
 					else if (audio.type == atAAC || audio.type == atAACHE)
 					{
@@ -4603,6 +5198,21 @@ void eServiceMP3::gstBusCall(GstMessage *msg)
 					m_subtitleStreams.assign(subtitleStreams_temp.begin(), subtitleStreams_temp.end());
 					eTrace("[eServiceMP3] evUpdatedInfo called for audiosubs");
 					m_event((iPlayableService*)this, evUpdatedInfo);
+				}
+
+				/* Whatever seeded these (an "&e2audiotrack="/"&e2subtitletrack="
+				 * URL parameter, or the IPTV db lookup - see the constructor)
+				 * can be stale/out-of-range for this actual file - deselect
+				 * rather than leaving a dangling index that selectAudioStream()/
+				 * getCachedSubtitle() would silently misinterpret. -1 itself is
+				 * left alone: it already means "nothing picked yet" everywhere
+				 * else in this class. */
+				if (m_currentAudioStream >= (int)m_audioStreams.size())
+					m_currentAudioStream = -1;
+				if (m_currentSubtitleStream >= (int)m_subtitleStreams.size())
+				{
+					m_currentSubtitleStream = -1;
+					m_cachedSubtitleStream = -1;
 				}
 			}
 			else
@@ -5079,7 +5689,15 @@ void eServiceMP3::gstPoll(ePtr<GstMessageContainer> const &msg)
 			GstBuffer *buffer = *((GstMessageContainer*)msg);
 			if (buffer)
 			{
-				pullSubtitle(buffer);
+				/* Captured (gstCBsubtitleAvail()) before the last subtitle
+				 * switch: still holds the previous track's raw bytes and
+				 * would be parsed as though it were the current track's -
+				 * see m_subtitle_generation's own comment. */
+				if (msg->getGeneration() != m_subtitle_generation.load())
+					eDebug("[eServiceMP3] dropping stale subtitle buffer (gen %d, current %d)",
+						msg->getGeneration(), m_subtitle_generation.load());
+				else
+					pullSubtitle(buffer);
 			}
 			break;
 		}
@@ -5102,7 +5720,7 @@ void eServiceMP3::gstCBsubtitleAvail(GstElement *subsink, GstBuffer *buffer, gpo
 		if (buffer) gst_buffer_unref(buffer);
 		return;
 	}
-	_this->m_pump.send(new GstMessageContainer(2, NULL, NULL, buffer));
+	_this->m_pump.send(new GstMessageContainer(2, NULL, NULL, buffer, _this->m_subtitle_generation.load()));
 }
 
 void eServiceMP3::gstTextpadHasCAPS(GstPad *pad, GParamSpec * unused, gpointer user_data)
@@ -5227,7 +5845,10 @@ void eServiceMP3::pushDVBSubtitles()
 {
 	pts_t running_pts = 0, decoder_ms;
 
-	if (getPlayPosition(running_pts) < 0)
+	/* show_time comes from raw GStreamer buffer PTS (see pullSubtitle()), so
+	 * this must be compared against the same raw domain, not the
+	 * display-corrected getPlayPosition(). */
+	if (getRawPlayPosition(running_pts) < 0)
 		eTrace("[eServiceMP3] Cant get current decoder time.");
 
 	while (1)
@@ -5274,7 +5895,10 @@ void eServiceMP3::pushSubtitles()
 
 	// wait until clock is stable
 
-	if (getPlayPosition(running_pts) < 0)
+	/* start_ms/end_ms below come from raw GStreamer buffer PTS (see
+	 * pullSubtitle()), so this must be compared against the same raw domain,
+	 * not the display-corrected getPlayPosition(). */
+	if (getRawPlayPosition(running_pts) < 0)
 		m_decoder_time_valid_state = 0;
 
 	if (m_decoder_time_valid_state < 4)
@@ -5378,6 +6002,27 @@ RESULT eServiceMP3::enableSubtitles(iSubtitleUser *user, struct SubtitleTrack &t
 		return -1;
 	}
 	eDebug ("[eServiceMP3][enableSubtitles] entered: subtitle stream %i track.pid %i", m_currentSubtitleStream, track.pid - 1);
+	/*
+	 * Clearing the pending-page queues below only stops whatever hasn't been
+	 * displayed yet - it does nothing about a page already on screen: setPage()
+	 * arms the widget's own internal hide timer for that page's timeout with
+	 * no knowledge of a track switch happening underneath it, so without this
+	 * the old track's last subtitle just stays correctly rendered - and
+	 * stale - on screen until that original timeout happens to elapse.
+	 * Whichever widget is about to stop being used should have this called on
+	 * it, so this runs before m_subtitle_widget is reassigned to "user" below
+	 * (usually the same object, but not guaranteed to be).
+	 */
+	/*
+	 * Whether an already-active subtitle track is being replaced by a
+	 * different one, captured before m_currentSubtitleStream is overwritten
+	 * below - see m_subtitle_switch_needs_flush's own comment in the .h for
+	 * why this, not just "is the pipeline settled", decides whether
+	 * applySubtitleStreamSwitch() actually flushes.
+	 */
+	const bool wasAlreadyShowingSubtitles = (m_currentSubtitleStream >= 0);
+
+	if (m_subtitle_widget) m_subtitle_widget->clearPage();
 	g_object_set (G_OBJECT (m_gst_playbin), "current-text", -1, NULL);
 	m_subtitle_sync_timer->stop();
 	m_dvb_subtitle_sync_timer->stop();
@@ -5388,12 +6033,29 @@ RESULT eServiceMP3::enableSubtitles(iSubtitleUser *user, struct SubtitleTrack &t
 	m_currentSubtitleStream = track.pid - 1;
 	m_cachedSubtitleStream = m_currentSubtitleStream;
 	setCacheEntry(false, track.pid - 1);
-	g_object_set (G_OBJECT (m_gst_playbin), "current-text", m_currentSubtitleStream, NULL);
 
-	if (track.type != stDVB)
+	m_subtitle_switch_needs_flush = wasAlreadyShowingSubtitles;
+
+	/* Bump first: any subtitle buffer already captured under the previous
+	 * generation and still in flight to gstPoll() (queued in m_pump - see
+	 * gstCBsubtitleAvail()/m_subtitle_generation) must be dropped there
+	 * rather than parsed as though it belonged to the track being switched
+	 * to now. */
+	m_subtitle_generation++;
+	if (pipelineSettledInPlaying(m_gst_playbin))
 	{
-		m_clear_buffers = true;
-		clearBuffers();
+		m_subtitle_switch_deferred = false;
+		applySubtitleStreamSwitch();
+	}
+	else
+	{
+		/* gstBusCall()'s GST_STATE_CHANGE_PAUSED_TO_PLAYING handling applies
+		 * this the moment the pipeline next settles - same deferral as
+		 * selectAudioStream()'s m_audio_switch_deferred, and for the same
+		 * reason: forcing the selector commit below against an unsettled
+		 * pipeline is untested territory this class would rather not risk. */
+		m_subtitle_switch_deferred = true;
+		eDebug("[eServiceMP3] enableSubtitles: pipeline not settled in PLAYING, deferring switch to stream %i", m_currentSubtitleStream);
 	}
 
 	m_subtitle_widget = user;
@@ -5414,6 +6076,11 @@ RESULT eServiceMP3::enableSubtitles(iSubtitleUser *user, struct SubtitleTrack &t
 RESULT eServiceMP3::disableSubtitles()
 {
 	eDebug("[eServiceMP3] disableSubtitles");
+	/* See enableSubtitles(): invalidates any buffer still in flight from the
+	 * track being turned off, and cancels a still-pending deferred switch -
+	 * there is nothing left to apply it to. */
+	m_subtitle_generation++;
+	m_subtitle_switch_deferred = false;
 	m_currentSubtitleStream = -1;
 	m_cachedSubtitleStream = m_currentSubtitleStream;
 	setCacheEntry(false, -1);
