@@ -134,6 +134,20 @@ class eServiceMP3: public iPlayableService, public iPauseableService,
 public:
 	virtual ~eServiceMP3();
 
+	/* stop() hands the actual hardware-sink teardown (which releases the
+	 * shared /dev/dvb/adapterX/videoY and audioY decoder device nodes) off to
+	 * a detached worker thread instead of blocking on it - see stop()'s and
+	 * stopWorker()'s comments in servicemp3.cpp. That means a service opening
+	 * those same nodes right after an eServiceMP3 stop()/destruct (e.g.
+	 * switching from a played file to a PVR recording) can race that
+	 * in-flight teardown and find the device still held. Callers about to
+	 * open a decoder device after tearing down a previous eServiceMP3 should
+	 * call this first: it polls the outstanding-teardown counter for up to
+	 * timeout_ms and returns once none remain (or the timeout elapses),
+	 * without ever blocking on gst_element_set_state() itself. Returns true
+	 * if it observed zero outstanding teardowns before timing out. */
+	static bool waitForHardwareRelease(unsigned int timeout_ms);
+
 	void setCacheEntry(bool isAudio, int pid);
 		// iPlayableService
 	RESULT connectEvent(const sigc::slot<void(iPlayableService*,int)> &event, ePtr<eConnection> &connection);
@@ -322,6 +336,10 @@ private:
 	bool m_clear_buffers;
 	bool m_initial_start;
 	bool m_send_ev_start;
+	/* True once evFirstFrame has been fired for this playback session -
+	 * see its firing sites in gstBusCall() for why this needs its own
+	 * one-shot flag rather than reusing m_initial_start. */
+	bool m_first_frame_fired;
 	bool m_seek_paused;
 	bool m_autoturnon;
 	/* cuesheet load check */
