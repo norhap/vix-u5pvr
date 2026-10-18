@@ -208,8 +208,16 @@ static const char* fragment_shader_es2 = R"(#version 100
                 }
             }
 
-            if (t > u_gradient_stops[u_num_stops - 1]) {
-                grad_color = u_gradient_colors[u_num_stops - 1];
+            // GLSL ES 1.00 (Appendix A) only allows constant-index-expressions
+            // for uniform arrays in a fragment shader - u_num_stops - 1 is a
+            // runtime uniform, which Broadcom's V3D driver rejects (confirmed
+            // on VU+ Ultimo4K: "indexing ... with a non-constant is not
+            // mandated in the fragment shader"). Find the last stop with a
+            // loop index instead, which is a constant-index-expression.
+            for (int i = 0; i < 16; i++) {
+                if (i == u_num_stops - 1 && t > u_gradient_stops[i]) {
+                    grad_color = u_gradient_colors[i];
+                }
             }
 
             if (u_alphablend == 1) {
@@ -265,7 +273,9 @@ void gAdvancedShader::destroy() {
 
 GLuint gAdvancedShader::compileShader(GLenum type, const char* source) {
 	GLuint shader = glCreateShader(type);
-	glShaderSource(shader, 1, &source, nullptr);
+	const std::string specialized = gles::specializeShaderSource(source);
+	const char* specialized_src = specialized.c_str();
+	glShaderSource(shader, 1, &specialized_src, nullptr);
 	glCompileShader(shader);
 
 	GLint success;
@@ -364,7 +374,7 @@ void gAdvancedShader::setResolution(float width, float height) {
 }
 
 void gAdvancedShader::drawAdvancedRect(float x, float y, float width, float height, int radius, uint8_t edges, const std::vector<gRGB>& gradient_colors, uint8_t orientation, bool alphablend,
-									   float alpha, const gRGB& solid_color, int border_width, const gRGB& border_color, bool coverage_alpha) {
+									   float alpha, const gRGB& solid_color, int border_width, const gRGB& border_color, bool coverage_alpha, const float* quad) {
 	bind();
 
 	glUniform1f(m_coverage_alpha_location, coverage_alpha ? 1.0f : 0.0f);
@@ -409,7 +419,9 @@ void gAdvancedShader::drawAdvancedRect(float x, float y, float width, float heig
 		glUniform1i(m_num_stops_location, 0);
 	}
 
-	float vertices[6][2] = {{x, y}, {x, y + height}, {x + width, y}, {x + width, y}, {x, y + height}, {x + width, y + height}};
+	const float qx = quad ? quad[0] : x, qy = quad ? quad[1] : y;
+	const float qw = quad ? quad[2] : width, qh = quad ? quad[3] : height;
+	float vertices[6][2] = {{qx, qy}, {qx, qy + qh}, {qx + qw, qy}, {qx + qw, qy}, {qx, qy + qh}, {qx + qw, qy + qh}};
 
 	// position (x, y) - must match init()'s VAO layout.
 	static const gles::VertexAttrib attribs[] = {{0, 2, 0}};

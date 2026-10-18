@@ -1,12 +1,24 @@
 #pragma once
 
 #include <cstring>
+#include <string>
 
 #ifdef HAVE_GLES3
 #include <GLES3/gl3.h>
 #else
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
+
+// Single-channel texture enums are core GLES3 only, but the shared upload
+// code names them in isGLES3() ? GL_R8/GL_RED : GL_LUMINANCE expressions that
+// still have to compile (never execute) in a GLES2-only build. Values per the
+// Khronos headers.
+#ifndef GL_RED
+#define GL_RED 0x1903
+#endif
+#ifndef GL_R8
+#define GL_R8 0x8229
+#endif
 #endif
 
 // gles_version.h
@@ -36,6 +48,21 @@ namespace gles
     extern bool needsRBSwap;
 
     inline bool isGLES3() { return version >= 3; }
+
+    // Returns `source` with its `uniform float u_rbswap;` declaration (if any)
+    // replaced by a compile-time constant matching needsRBSwap. The GPU compiler
+    // can't fold mix(c, c.bgra, <uniform>) away, so on every platform that
+    // doesn't need the swap (all but Dreambox) it cost extra ALU on every shaded
+    // fragment; as a constant it folds to nothing. Call after needsRBSwap is set
+    // (gEGLDC::initEGL() does, before any shader init()).
+    std::string specializeShaderSource(const char* source);
+
+    // Driver-reported version strings (eglQueryString(EGL_VERSION) and
+    // glGetString(GL_VERSION)), e.g. "1.4" / "OpenGL ES 3.0 Mesa 23.1".
+    // Empty until the context is created; exposed to Python through
+    // getEGLVersionString() / getGLESVersionString() (main/enigma.cpp).
+    extern std::string eglVersionString;
+    extern std::string glesVersionString;
 
     // How per-draw vertex data reaches the GPU - see setVertexData().
     // Set once by gEGLDC::initEGL() (ENIGMA_EGL_CLIENT_ARRAYS=0 turns it off).

@@ -4,8 +4,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: enigma2\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-08 19:13+0300\n"
-"PO-Revision-Date: 2026-09-08 19:46+0300\n"
+"POT-Creation-Date: 2026-10-18 18:44+0300\n"
+"PO-Revision-Date: 2026-10-18 20:05+0300\n"
 "Last-Translator: Orlandox\n"
 "Language-Team: timoj/Kojo/Samzam/Orlandox\n"
 "Language: fi\n"
@@ -13,7 +13,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
-"X-Generator: Poedit 3.9\n"
+"X-Generator: Poedit 3.10\n"
 
 msgid ""
 "\n"
@@ -3572,9 +3572,6 @@ msgstr "Valitse, muunnetaanko monikanavaiset AAC -ääniraidat stereoksi."
 msgid "Choose whether multi channel AAC+ sound tracks should be downmixed to stereo."
 msgstr "Valitse, muunnetaanko monikanavaiset AAC+ -ääniraidat stereoksi."
 
-msgid "Choose whether multi channel AC3 / AC3+ sound tracks should be downmixed to stereo."
-msgstr "Valitse, muunnetaanko monikanavaiset AC3 / AC3+ -ääniraidat stereoksi."
-
 msgid "Choose whether multi channel AC3 sound tracks should be downmixed to stereo."
 msgstr "Valitse, muunnetaanko monikanavaiset AC3 -ääniraidat stereoksi."
 
@@ -3685,9 +3682,6 @@ msgstr "Sulje näyttö '%s'"
 #, python-format
 msgid "Close '%s' screen and exit all menus"
 msgstr "Sulje '%s'-näyttö ja poistu kaikista valikoista"
-
-msgid "Close CA device at programm end"
-msgstr "Sulje CA-laite ohjelman lopussa"
 
 msgid "Close PiP on exit"
 msgstr "Sulje PiP-kuva Exit-näppäimellä"
@@ -5058,9 +5052,6 @@ msgstr "Pura vastaanotettavat http-streamit"
 msgid "Descramble sending http streams"
 msgstr "Pura lähetettävät http-streamit"
 
-msgid "Descrambling options"
-msgstr "Salauksen purkuvaihtoehdot"
-
 msgid "Description"
 msgstr "Kuvaus"
 
@@ -5602,6 +5593,10 @@ msgstr "ECM tietoja"
 
 msgid "ECM data will be included in the stream. This enables a client receiver to decode it."
 msgstr "ECM data lisätään streamiin. Tämä mahdollistaa salauksen purkamisen asiakasvastaanottimessa."
+
+#, python-format
+msgid "EGL/GLES:\t%s\n"
+msgstr "EGL/GLES:\t%s\n"
 
 msgid "EJECTCD"
 msgstr "POISTA CD"
@@ -7332,6 +7327,9 @@ msgstr "HDR10"
 msgid "HDR10 Support"
 msgstr "HDR10-tuki"
 
+msgid "HDR10 user interface correction"
+msgstr "HDR10-käyttöliittymän korjaus"
+
 msgid "HDR10+"
 msgstr "HDR10+"
 
@@ -8359,6 +8357,9 @@ msgstr "Säilytä kanava"
 msgid "Keeps the movie list open whilst playing audio files."
 msgstr "Pidä tallennelista auki äänitiedostojen toiston aikana."
 
+msgid "Keeps the user interface looking as it does in SDR while an HDR10 programme plays, by compensating the brightness and contrast the HDR10 output would otherwise change. Has no effect on SDR or HLG programmes."
+msgstr "Pitää käyttöliittymän ulkoasun samanlaisena kuin SDR-tilassa, kun HDR10-ohjelmaa toistetaan, kompensoimalla kirkkautta ja kontrastia, joita HDR10-lähtösignaali muuten muuttaisi. Ei vaikuta SDR- tai HLG-ohjelmiin."
+
 msgid "Kenya"
 msgstr "Kenia"
 
@@ -8784,6 +8785,9 @@ msgstr "Pitkät tiedostonimet"
 
 msgid "Long key press"
 msgstr "Pitkä painallus"
+
+msgid "Long press delay threshold"
+msgstr "Pitkän painalluksen viiveen kynnysarvo"
 
 msgid "Long press: "
 msgstr "Pitkä painallus: "
@@ -10206,12 +10210,6 @@ msgstr "Pois päältä"
 
 msgid "Offline decode delay (ms)"
 msgstr "Offline-purkamisen viive (ms)"
-
-msgid "Offset CA device index"
-msgstr "Offset CA-laiteindeksi"
-
-msgid "Offset and close CA device"
-msgstr "Offset ja sulje CA-laite"
 
 msgid "Olympia"
 msgstr "Olympialaiset"
@@ -15329,7 +15327,7 @@ msgstr ""
 "Suomenkielinen käännös: timoj, Kojo, Samzam, Orlandox\n"
 "\n"
 "Ylläpito : Orlandox\n"
-"--- 08.09.2026 ---\n"
+"--- 18.10.2026 ---\n"
 "\n"
 "http://www.huoltovalikko.com"
 
@@ -15949,6 +15947,9 @@ msgstr "Tämä asetus määrittää kuvan terävyyden, käytetään kun kuva ska
 
 msgid "This setting allows the tuner configuration to be a duplication of how another tuner is already configured."
 msgstr "Tämä asetus sallii viritinasetusten kopioinnin jo valmiiksi määritellystä virittimestä."
+
+msgid "This setting allows you to increase or decrease the number of key repeats required to trigger a long press on the remote control or keyboard."
+msgstr "Tämän asetuksen avulla voit lisätä tai vähentää näppäimen toistojen määrää, joka tarvitaan kaukosäätimessä tai näppäimistössä pitkän painalluksen laukaisemiseen."
 
 msgid "This setting depends on your cable provider and location. If you don't know the correct setting refer to the menu in the official cable receiver, or get it from your cable provider, or seek help via internet forum."
 msgstr "Tämä asetus riippuu kaapelipalveluntarjoajastasi ja sijainnistasi. Jos et tiedä oikeaa asetusta, selaa laitteesi valikoita, pyydä kaapelipalveluntarjoajalta tai Googleta."

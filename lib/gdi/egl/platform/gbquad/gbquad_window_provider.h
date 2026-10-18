@@ -97,10 +97,20 @@ typedef enum NEXUS_HdmiOutputHdcpError
 // mirrors the fix validated on real gbquad4kpro hardware by the reference
 // HbbTV2 EGL port (xcentaurix/hbbtv2, WebKit patch "join and register with
 // Nexus before any EGL call").
+//
+// Zgemma's h7/h17 (BCM7251S, meta-airdigital's airdigital-v3ddriver) ship the same
+// libnxpl/libnexus/libv3ddriver trio but no libnxclient.so, so those boxes define
+// HAVE_NXPL_NO_NXCLIENT and join with NEXUS_Platform_AuthenticatedJoin(NULL) instead
+// (see init()). Their libnxpl.so was disassembled to confirm the rest matches:
+// NXPL_NativeWindowInfoEXT is the same 0x58-byte layout (colorBlend at 0x1c,
+// alphaBlend at 0x38, magic at 0x54) and NXPL_CreateNativeWindowEXT ends in
+// NEXUS_SurfaceClient_Acquire(info.clientID), as on GigaBlue.
 class GbquadWindowProvider : public INativeWindowProvider {
 private:
 	NXPL_PlatformHandle m_nxpl_display_handle; // handle from NXPL_RegisterNexusDisplayPlatform
 	void* m_native_window;                     // handle from NXPL_CreateNativeWindowEXT
+	int m_window_width = 0;                    // size the current native window was created with
+	int m_window_height = 0;
 	bool m_joined_nxclient;                    // NxClient_Join() succeeded - must be balanced by NxClient_Uninit()
 
 public:
@@ -113,6 +123,23 @@ public:
 	EGLNativeWindowType getNativeWindow() override;
 	void cleanup() override;
 	void onFramebufferUnlocked() override { clearFramebuffer(); }
+	bool premultipliesOverwrites() override;
+	bool needsStraightAlphaPresent() override;
+	float presentUnpremultiplyPower() override;
+	bool premultipliesBlits() override;
+	// Nexus graphics colour (contrast + saturation) so SDR OSD white lands at `nits` in HDR10.
+	bool setHdrOsdWhiteNits(float nits) override;
+
+	// `stretch` (set in init(), see its own comment there) makes Nexus's
+	// compositor scale THIS window's authored width/height to fill the
+	// display regardless of the current output resolution - but nothing
+	// updates that authored size if the OSD canvas itself changes size
+	// after init() already ran (e.g. a skin whose resolution differs from
+	// whatever this was constructed with - see gEGLDC::setResolution()).
+	// Without this, content gets rendered for the new canvas size but
+	// Nexus keeps scaling as if the window were still its original size -
+	// every widget's position/size reads as wrong relative to the display.
+	void onResolutionChanged(int width, int height) override;
 
 	// Zeroes /dev/fb0 (fully transparent) - it's a display layer beneath this
 	// provider's window, so stale content there (ofgwrite's progress screen
