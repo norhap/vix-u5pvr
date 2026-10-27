@@ -1,6 +1,6 @@
 #include <unistd.h>
 #include <algorithm>
-#include <cmath>
+#include <cmath> 
 #include <cstdint>
 #include <vector>
 #include <cstdlib> 
@@ -472,6 +472,19 @@ bool gEGLDC::initEGL() {
 		eFatal("[gEGLDC] failed to initialise font atlas!");
 		return false;
 	}
+	if (!m_web_overlay.initGL())
+		eDebug("[gEGLDC] web overlay layer unavailable (shader/limits) - the browser cannot be shown through gEGLDC");
+	// The browser shares the small GPU heap and cannot evict: when its layer opens, drop every cached GUI texture first (they
+	// re-upload on demand, trimmed to the web budget by flip()).
+	m_web_overlay.setOnShow([this]() {
+		flushBlitBatch();
+		flushTextBatch();
+		m_texture_manager.processDeletions();
+		const size_t released = m_texture_manager.releaseUnusedTextures();
+		m_texture_manager.processDeletions();
+		glFinish();
+		eDebug("[gEGLDC] web layer opening: released %.1fMB of GUI textures", released / 1048576.0);
+	});
 
 	// 9. upload projection matrices
 	m_basic_shader.setResolution((float)m_width, (float)m_height);
@@ -2595,7 +2608,7 @@ void gEGLDC::exec(const gOpcode* opcode) {
 	// correct, single place this should happen.
 }
 
-gEGLDC* gEGLDC::s_instance = nullptr;
+gEGLDC* gEGLDC::s_instance = nullptr;     
 
 // gDC::getRGB() (grc.cpp) resolves a palette-index colour (gColor) through
 // m_pixmap->surface->clut, and falls back to gRGB(col, col, col) - i.e. near
@@ -2655,9 +2668,15 @@ gEGLDC::gEGLDC(INativeWindowProvider* window_provider, int width, int height) : 
 	// object entirely - a very likely source of the wrong colors seen.
 	m_pixmap = new gPixmap(eSize(width, height), 32, gPixmap::accelNever);
 	allocStagingPalette(m_pixmap);
+
+	// Main thread (eInit). Every provider: platforms without a shadow framebuffer get a temporary
+	// one while the layer is visible (updateOverlayShadow()).
+	if (window_provider)
+		m_web_overlay.startListening([this]() { requestFlush(); });
 }
 
 gEGLDC::~gEGLDC() {
+	m_web_overlay.stopListening();
 	cleanupEGL();
 	// gEGLDCAutoInit::initNow() (egl_init.cpp) transfers ownership of the
 	// provider it constructs to us via the constructor below - nothing else
@@ -2696,6 +2715,7 @@ void gEGLDC::cleanupEGL() {
 		releaseToneLut();
 		m_texture_shader.destroy();
 		m_text_shader.destroy();
+		m_web_overlay.destroyGL();
 		destroyShadowFramebuffer();
 		releaseFrameTextures();
 
@@ -3058,11 +3078,48 @@ void gEGLDC::serviceOsdCapture() {
 	// bound explicitly so the readback never depends on that.
 	glBindFramebuffer(GL_FRAMEBUFFER, m_use_shadow_fbo ? m_shadow_fbo : 0);
 
+	// The web layer (HbbTV browser) is drawn straight into the window surface by flip(), never into the
+	// shadow framebuffer, so reading the shadow alone would leave it out of the grab. Compose it over a
+	// scratch copy of the shadow and read that instead; the shadow itself stays untouched.
+	GLuint scratch_tex = 0, scratch_fbo = 0;
+	if (m_use_shadow_fbo && !m_straight_alpha_present && m_web_overlay.sync()) {
+		glGenTextures(1, &scratch_tex);
+		glBindTexture(GL_TEXTURE_2D, scratch_tex);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, width, height); // reads the bound shadow framebuffer
+		glBindTexture(GL_TEXTURE_2D, 0);
+		glGenFramebuffers(1, &scratch_fbo);
+		glBindFramebuffer(GL_FRAMEBUFFER, scratch_fbo);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, scratch_tex, 0);
+		if (glGetError() == GL_NO_ERROR && glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE) {
+			glScissor(0, 0, m_phys_width, m_phys_height);
+			glViewport(0, 0, m_phys_width, m_phys_height);
+			m_web_overlay.draw(m_width, m_height);
+			glEnable(GL_BLEND);
+			applyViewport();
+		} else {
+			eDebug("[gEGLDC] OSD capture: scratch framebuffer failed - grab without the web layer");
+			glBindFramebuffer(GL_FRAMEBUFFER, m_shadow_fbo);
+			glDeleteFramebuffers(1, &scratch_fbo);
+			glDeleteTextures(1, &scratch_tex);
+			scratch_fbo = scratch_tex = 0;
+		}
+	}
+
 	std::vector<uint8_t> pixels((size_t)width * (size_t)height * 4U);
 	glPixelStorei(GL_PACK_ALIGNMENT, 4);
 	glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
 
 	GLenum err = glGetError();
+	if (scratch_fbo) {
+		glBindFramebuffer(GL_FRAMEBUFFER, m_shadow_fbo);
+		glDeleteFramebuffers(1, &scratch_fbo);
+		glDeleteTextures(1, &scratch_tex);
+	}
 	if (err != GL_NO_ERROR) {
 		eDebug("[gEGLDC] OSD capture readback failed: 0x%x", err);
 		m_osd_capture.fail();
@@ -3603,7 +3660,132 @@ void gEGLDC::updateToneControl()
 	eDebug("[gEGLDC] HDR10 OSD: tone \"%s\" on, driver SDR white %.0f nits (%lldms after the gamma event)", spec.c_str(), white_nits, steadyMs() - s_video_gamma_ms.load());
 }
 
+// ---------------------------------------------------------------------------
+// Temporary shadow framebuffer for the web layer on platforms that normally render straight
+// into their surface - see m_overlay_shadow's comment (gegldc.h).
+// ---------------------------------------------------------------------------
+
+// Copies the surface currently bound as framebuffer 0 (this frame's finished OSD) into the shadow
+// texture and leaves the shadow framebuffer bound.
+void gEGLDC::copySurfaceToShadow() {
+	glScissor(0, 0, m_phys_width, m_phys_height);
+#ifdef HAVE_GLES3
+	if (gles::isGLES3()) {
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_shadow_fbo);
+		glBlitFramebuffer(0, 0, m_phys_width, m_phys_height, 0, 0, m_phys_width, m_phys_height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+		glBindFramebuffer(GL_FRAMEBUFFER, m_shadow_fbo);
+		return;
+	}
+#endif
+	// GLES2 (Mali): copy from the window surface into the texture on the GPU, whole frame at once.
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glBindTexture(GL_TEXTURE_2D, m_shadow_texture);
+	glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, m_phys_width, m_phys_height);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, m_shadow_fbo);
+}
+
+// Writes the whole shadow canvas into the surface bound as framebuffer 0 (raw copy, no blending) and
+// leaves the shadow framebuffer bound again. The same full-frame copy flip() does for shadow platforms.
+void gEGLDC::copyShadowToSurface() {
+	glScissor(0, 0, m_phys_width, m_phys_height);
+#ifdef HAVE_GLES3
+	if (gles::isGLES3()) {
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, m_shadow_fbo);
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+		glBlitFramebuffer(0, 0, m_phys_width, m_phys_height, 0, 0, m_phys_width, m_phys_height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+		glBindFramebuffer(GL_FRAMEBUFFER, m_shadow_fbo);
+		return;
+	}
+#endif
+	// m_shadow_texture is GPU-rendered (bottom-up), the quad follows the top-down convention of
+	// gTextureShader::drawBatch(): V is flipped, as in flip()'s own GLES2 present.
+	const float w = (float)m_width, h = (float)m_height;
+	const float quad[24] = {
+		0.0f, 0.0f, 0.0f, 1.0f,  0.0f, h,    0.0f, 0.0f,  w, 0.0f, 1.0f, 1.0f,
+		w,    0.0f, 1.0f, 1.0f,  0.0f, h,    0.0f, 0.0f,  w, h,    1.0f, 0.0f};
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glViewport(0, 0, m_phys_width, m_phys_height);
+	glDisable(GL_BLEND);
+	m_texture_shader.setUnpremultiply(false);
+	m_texture_shader.setToneLut(0);
+	m_texture_shader.drawBatch(quad, 6, m_shadow_texture, 1.0f);
+	glEnable(GL_BLEND);
+	applyViewport();
+	glBindFramebuffer(GL_FRAMEBUFFER, m_shadow_fbo);
+}
+
+// Draws the web layer over the frame just written into the surface (framebuffer 0), then returns to
+// the shadow framebuffer. The caller presents the surface next.
+void gEGLDC::drawWebOverlay() {
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glScissor(0, 0, m_phys_width, m_phys_height);
+	glViewport(0, 0, m_phys_width, m_phys_height);
+	m_web_overlay.draw(m_width, m_height);
+	glEnable(GL_BLEND);
+	applyViewport();
+	glBindFramebuffer(GL_FRAMEBUFFER, m_shadow_fbo);
+}
+
+// Called once per frame at the top of flip() with whether the layer is to be shown. On platforms that
+// already have a shadow framebuffer it does nothing. Elsewhere it switches rendering into a
+// temporary shadow while the layer is visible (this frame's finished surface content becomes the
+// shadow's content, so nothing is lost) and back again when it hides.
+void gEGLDC::updateOverlayShadow(bool want) {
+	if (!want)
+		m_overlay_shadow_failed = false;
+	if (want && !m_use_shadow_fbo && !m_overlay_shadow_failed) {
+		flushBlitBatch();
+		flushTextBatch();
+		glFinish(); // the surface is read back on the GPU below; some drivers (Mali) want it settled first
+		if (!createShadowFramebuffer()) {
+			eDebug("[gEGLDC] web layer: temporary shadow framebuffer failed - layer not shown");
+			m_overlay_shadow_failed = true;
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			return;
+		}
+		m_use_shadow_fbo = true;
+		m_overlay_shadow = true;
+		copySurfaceToShadow();
+		applyViewport();
+		eDebug("[gEGLDC] web layer visible: rendering through a temporary shadow framebuffer");
+	} else if (!want && m_overlay_shadow) {
+		flushBlitBatch();
+		flushTextBatch();
+		copyShadowToSurface(); // the surface holds the complete OSD again before direct rendering resumes
+		destroyShadowFramebuffer();
+		m_use_shadow_fbo = false;
+		m_overlay_shadow = false;
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		applyViewport();
+		eDebug("[gEGLDC] web layer hidden: back to direct rendering");
+	}
+}
+
 void gEGLDC::flip() {
+	// While the web layer (HbbTV) is shown, enigma2's own textures may use only part of the GPU heap. The texture manager keeps every
+	// texture until the driver runs out of memory - on a 256 MB heap shared with the browser it takes all that is free, and the
+	// browser, which cannot evict, then loses its tiles (black rectangles, an empty layer) until enigma2 is restarted and the cache is
+	// empty again. ENIGMA_WEB_TEX_BUDGET_MB (default 48, 0 = no limit). Before nextFrame(): what was drawn this frame stays.
+	// Outside HbbTV the manager's own soft budget (ENIGMA_TEX_BUDGET_MB, or learned from the first out-of-memory) applies instead.
+	// Either way at most a few textures are deleted per frame: the excess goes away gradually, not in one stall (nor inside the draw
+	// that hit the driver's limit, which is what made the UI hiccup).
+	size_t budget = m_texture_manager.softBudget();
+	if (m_web_overlay_was_on) {
+		static const size_t web_budget = []() {
+			const char* e = getenv("ENIGMA_WEB_TEX_BUDGET_MB");
+			return (size_t)(e ? atoi(e) : 48) << 20;
+		}();
+		if (web_budget && (!budget || web_budget < budget))
+			budget = web_budget;
+	}
+	if (budget) {
+		const size_t freed = m_texture_manager.trimTo(budget, 6);
+		if (freed && m_web_overlay_was_on)
+			eDebug("[gEGLDC] web layer visible: released %.1fMB of textures (budget %.0fMB, now ~%.1fMB)", freed / 1048576.0, budget / 1048576.0,
+				m_texture_manager.liveBytes() / 1048576.0);
+	}
 	// Defines "this frame" for the texture manager's LRU eviction.
 	m_texture_manager.nextFrame();
 	std::chrono::steady_clock::time_point prof_t0;
@@ -3620,6 +3802,12 @@ void gEGLDC::flip() {
 		serviceOsdCapture();
 
 	if (isInitialized() && m_egl_display != EGL_NO_DISPLAY && m_egl_surfaces[m_render_page] != EGL_NO_SURFACE) {
+		// The web layer is composited as premultiplied "over" onto the finished frame, which only
+		// matches platforms whose compositor takes the OSD premultiplied (see gweb_overlay.h).
+		const bool overlay_on = !m_straight_alpha_present && m_web_overlay.sync();
+		m_web_overlay_was_on = overlay_on;
+		updateOverlayShadow(overlay_on);
+
 		// eglSwapBuffers() is only defined for window surfaces; a pixmap-surface
 		// platform (Dreambox) presents via the provider instead - see
 		// presentPixmap(). m_render_page is the page this frame was just
@@ -3627,6 +3815,14 @@ void gEGLDC::flip() {
 		// below).
 		if (m_window_provider->usesPixmapSurface()) {
 			int shown_page = m_render_page;
+			if (m_use_shadow_fbo) {
+				// Rendering goes to the temporary shadow (web layer visible): write the whole canvas
+				// into this page, put the layer over it, and present. The page is rewritten in full
+				// every frame, so the rotation below needs no seeding from the shown page.
+				copyShadowToSurface();
+				if (overlay_on)
+					drawWebOverlay();
+			}
 			std::chrono::steady_clock::time_point present_t0;
 			if (m_profile)
 				present_t0 = std::chrono::steady_clock::now();
@@ -3646,6 +3842,11 @@ void gEGLDC::flip() {
 				// it took).
 				m_render_page = (m_render_page + 1) % m_page_count;
 
+				if (m_use_shadow_fbo) {
+					if (!eglMakeCurrent(m_egl_display, m_egl_surfaces[m_render_page], m_egl_surfaces[m_render_page], m_egl_context))
+						eDebug("[gEGLDC] eglMakeCurrent to page %d failed (web layer mode): 0x%x", m_render_page, eglGetError());
+					glBindFramebuffer(GL_FRAMEBUFFER, m_shadow_fbo);
+				} else {
 				// Seed the new back buffer with what's now actually on screen
 				// (shown_page) before any of the next frame's opcodes run -
 				// needed because the compositor above only redraws dirty
@@ -3713,6 +3914,7 @@ void gEGLDC::flip() {
 					if (!eglMakeCurrent(m_egl_display, m_egl_surfaces[shown_page], m_egl_surfaces[shown_page], m_egl_context))
 						eDebug("[gEGLDC] eglMakeCurrent back to shown page %d failed: 0x%x", shown_page, eglGetError());
 				}
+				} // !m_use_shadow_fbo (seeding)
 			}
 		} else if (m_use_shadow_fbo && islocked()) {
 			// See m_lock_cleared's comment (gegldc.h): uncover fb0 once, then
@@ -3844,6 +4046,12 @@ void gEGLDC::flip() {
 				applyViewport();
 				glBindFramebuffer(GL_FRAMEBUFFER, m_shadow_fbo);
 			}
+			// External web layer (HbbTV browser): drawn into the window surface AFTER the OSD
+			// was copied there, so it never lands in m_shadow_fbo - the next frame re-copies
+			// the shadow canvas over it and a hidden layer leaves no trace. The premultiplied
+			// "over" blend is only right where the compositor also takes premultiplied alpha.
+			if (m_use_shadow_fbo && overlay_on)
+				drawWebOverlay();
 			std::chrono::steady_clock::time_point swap_t0;
 			if (m_profile)
 				swap_t0 = std::chrono::steady_clock::now();
